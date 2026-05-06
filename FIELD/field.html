@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="base.css" />
+  <link rel="stylesheet" href="../base.css" />
   <link rel="stylesheet" href="field.css" />
 </head>
 <body>
@@ -141,8 +141,9 @@
             <div class="checkin-title">GPS Geofence Check-In</div>
             <div class="checkin-sub">You must be within 150m of the incident site to check in. The system verifies your GPS coordinates.</div>
             <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-              <button class="btn-danger" id="btn-checkin"  onclick="attemptCheckin()">📍 Check In (GPS)</button>
+              <button class="btn-danger" id="btn-checkin" onclick="attemptCheckin()">📍 Check In (GPS)</button>
               <button class="btn-success" id="btn-simulate" onclick="simulateArrival()">🧪 Simulate Arrival</button>
+              <button class="btn-secondary" onclick="openDispatchChat()">💬 Chat with Dispatch</button>
             </div>
             <div class="checkin-status" id="checkin-status"></div>
           </div>
@@ -263,7 +264,9 @@
 <!-- Modal container -->
 <div id="modal-container"></div>
 
-<script src="data.js"></script>
+<script src="../data.js"></script>
+<script src="../api.js"></script>
 <script src="field.js"></script>
+<script src="field.backend.js"></script>
 </body>
 </html>

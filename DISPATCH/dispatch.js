@@ -15,6 +15,8 @@ let activeTimers       = {};
 (function init() {
   renderDashboard();
   renderAnalytics();
+  renderProfile();
+  renderProfileCard();
   /* Start countdown timers for active cases */
   startAllCountdowns();
 })();
@@ -458,13 +460,246 @@ function reassignCase(id) {
 }
 
 /* ── PAGE CHANGE HOOK — re-render dynamic pages on visit ───── */
-const _origSetActivePage = typeof setActivePage !== 'undefined' ? setActivePage : null;
+const _origSetActivePage = typeof setActivePage === 'function' ? setActivePage : null;
 
 /* Patch setActivePage to trigger renders */
-const __base_setActivePage = setActivePage;
+const __base_setActivePage = typeof setActivePage === 'function' ? setActivePage : null;
 function setActivePage(pageId) {
-  __base_setActivePage(pageId);
+  if (__base_setActivePage) {
+    __base_setActivePage(pageId);
+  } else {
+    console.warn('Base setActivePage not found; fallback route:', pageId);
+    navigateToPage(pageId);
+  }
+
   if (pageId === 'active')   renderActiveCases();
   if (pageId === 'officers') renderOfficers();
   if (pageId === 'queue')    renderQueueTable();
+  if (pageId === 'profile')  renderProfile();
 }
+
+/* ── PROFILE PAGE ──────────────────────────────────────────── */
+function renderProfileCard() {
+  const dispatchUser = USERS.dispatch;
+  const mini = document.getElementById('profile-mini-card');
+  if (!mini) return;
+
+  mini.innerHTML = `
+    <div class="card" style="display:flex;align-items:center;gap:14px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface)">
+      <img src="${dispatchUser.profilePicture || 'https://i.pravatar.cc/120?img=68'}" alt="Profile" style="width:48px;height:48px;border-radius:50%;object-fit:cover" />
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:14px">${dispatchUser.name}</div>
+        <div style="color:var(--mist);font-size:12px">Dispatch Officer • ${dispatchUser.brgy}</div>
+      </div>
+      <button class="btn-secondary btn-sm" onclick="setActivePage('profile')">View Profile</button>
+    </div>
+  `;
+}
+
+function renderProfile() {
+  const dispatchUser = USERS.dispatch;
+  const caseCount = COMPLAINTS.length;
+  const closedCount = COMPLAINTS.filter(c => ['closed','resolved'].includes(c.status)).length;
+  const activeCount = COMPLAINTS.filter(c => ['assigned','in_progress'].includes(c.status)).length;
+
+  const topbarPhoto = document.getElementById('topbar-user-photo');
+  const topbarName = document.getElementById('topbar-user-name');
+  if (topbarPhoto) topbarPhoto.src = dispatchUser.profilePicture || 'https://i.pravatar.cc/120?img=68';
+  if (topbarName) topbarName.textContent = dispatchUser.name;
+
+  const avatarElement = document.getElementById('prof-avatar');
+  if (avatarElement) {
+    avatarElement.textContent = '';
+    avatarElement.style.backgroundImage = `url(${dispatchUser.profilePicture || 'https://i.pravatar.cc/120?img=68'})`;
+    avatarElement.style.backgroundSize = 'cover';
+    avatarElement.style.backgroundPosition = 'center';
+    avatarElement.style.textIndent = '-9999px';
+  }
+
+  document.getElementById('prof-name').textContent = dispatchUser.name;
+  document.getElementById('prof-position').textContent = 'Dispatch Officer';
+  document.getElementById('prof-email').textContent = dispatchUser.email;
+  document.getElementById('prof-phone').textContent = dispatchUser.phone;
+  document.getElementById('prof-badgeid').textContent = 'CPT-0001';
+  document.getElementById('prof-brgy').textContent = dispatchUser.brgy;
+
+  document.getElementById('prof-cases').textContent = caseCount;
+  document.getElementById('prof-closed').textContent = closedCount;
+  document.getElementById('prof-avgtime').textContent = '1.8 hours';
+  document.getElementById('prof-caseload').textContent = activeCount;
+  document.getElementById('prof-officers-count').textContent = OFFICERS.length;
+  document.getElementById('prof-active-brgy').textContent = BARANGAYS.length;
+
+  document.getElementById('prof-resolution-rate').textContent = '91%';
+  document.getElementById('prof-on-time').textContent = '94%';
+  document.getElementById('prof-avg-rating').textContent = '4.6★';
+  document.getElementById('prof-efficiency').textContent = '92/100';
+}
+
+function editProfile() {
+  const user = USERS.dispatch;
+  openModal(`
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:520px">
+        <div class="modal-head">
+          <div>
+            <div class="modal-title">Edit Profile</div>
+            <div class="modal-subtitle">Update dispatch officer details</div>
+          </div>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="text-align:center; margin-bottom:16px">
+            <img id="edit-profile-photo-preview" src="${user.profilePicture || 'https://i.pravatar.cc/120?img=68'}" style="width:84px;height:84px;border-radius:50%;object-fit:cover;border:2px solid var(--border)" alt="Profile Photo" />
+          </div>
+          <div class="form-group">
+            <label for="edit-profile-photo">Profile Picture</label>
+            <input id="edit-profile-photo" type="file" class="form-input" accept="image/*" onchange="previewProfileImage(event)" />
+          </div>
+          <div class="form-group">
+            <label for="edit-profile-name">Full Name</label>
+            <input id="edit-profile-name" class="form-input" type="text" value="${user.name}" />
+          </div>
+          <div class="form-group">
+            <label for="edit-profile-email">Email</label>
+            <input id="edit-profile-email" class="form-input" type="email" value="${user.email}" />
+          </div>
+          <div class="form-group">
+            <label for="edit-profile-phone">Phone</label>
+            <input id="edit-profile-phone" class="form-input" type="tel" value="${user.phone}" />
+          </div>
+          <div class="form-group">
+            <label for="edit-profile-brgy">Barangay</label>
+            <input id="edit-profile-brgy" class="form-input" type="text" value="${user.brgy}" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+          <button class="btn-primary" onclick="submitProfileEdit()">Save Changes</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+function previewProfileImage(event) {
+  const input = event.target;
+  const preview = document.getElementById('edit-profile-photo-preview');
+  if (input.files && input.files[0] && preview) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      preview.src = e.target.result;
+      preview.dataset.newImage = e.target.result;
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+function submitProfileEdit() {
+  const user = USERS.dispatch;
+  const name = document.getElementById('edit-profile-name')?.value.trim();
+  const email = document.getElementById('edit-profile-email')?.value.trim();
+  const phone = document.getElementById('edit-profile-phone')?.value.trim();
+  const brgy = document.getElementById('edit-profile-brgy')?.value.trim();
+  const preview = document.getElementById('edit-profile-photo-preview');
+
+  if (!name || !email || !phone || !brgy) {
+    showToast('All fields are required.');
+    return;
+  }
+
+  user.name = name;
+  user.email = email;
+  user.phone = phone;
+  user.brgy = brgy;
+
+  if (preview?.dataset?.newImage) {
+    user.profilePicture = preview.dataset.newImage;
+  }
+
+  closeModal();
+  renderProfile();
+  showToast('✓ Profile updated successfully.');
+}
+
+function changePassword() {
+  openModal(`
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:450px">
+        <div class="modal-head">
+          <div class="modal-title">Change Password</div>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="current-pass">Current Password <span style="color:var(--accent)*">*</span></label>
+            <input id="current-pass" class="form-input" type="password" placeholder="Enter current password" />
+          </div>
+          <div class="form-group">
+            <label for="new-pass">New Password <span style="color:var(--accent)*">*</span></label>
+            <input id="new-pass" class="form-input" type="password" placeholder="Enter new password" />
+          </div>
+          <div class="form-group">
+            <label for="confirm-pass">Confirm Password <span style="color:var(--accent)*">*</span></label>
+            <input id="confirm-pass" class="form-input" type="password" placeholder="Confirm new password" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+          <button class="btn-primary" onclick="submitPasswordChange()">✓ Change Password</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+function submitPasswordChange() {
+  const current = document.getElementById('current-pass')?.value;
+  const newPass = document.getElementById('new-pass')?.value;
+  const confirm = document.getElementById('confirm-pass')?.value;
+  if (!current || !newPass || !confirm) { showToast('Please fill in all password fields.'); return; }
+  if (newPass !== confirm) { showToast('New passwords do not match.'); return; }
+  if (newPass.length < 8) { showToast('Password must be at least 8 characters long.'); return; }
+  closeModal();
+  showToast('✓ Password changed successfully.');
+}
+
+function viewActivityLog() {
+  const activities = [
+    { time: '2 min ago', action: 'Viewed complaint queue', detail: 'Accessed Complaint Queue page' },
+    { time: '5 min ago', action: 'Assigned case to officer', detail: 'TRAPICO-2026-03-000014 → Ofc. Reyes' },
+    { time: '12 min ago', action: 'Verified complaint', detail: 'TRAPICO-2026-03-000015 marked as verified' },
+    { time: '18 min ago', action: 'Closed case', detail: 'TRAPICO-2026-03-000012 marked as closed' },
+    { time: '25 min ago', action: 'Sent message to officer', detail: 'Message to Ofc. Bautista' },
+    { time: '42 min ago', action: 'Viewed analytics', detail: 'Accessed Analytics page' },
+    { time: '1 hr ago', action: 'Logged in', detail: 'Session started' },
+  ];
+
+  const activityHtml = activities.map(a => `
+    <div style="padding:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:start">
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:13px">${a.action}</div>
+        <div style="font-size:12px;color:var(--mist);margin-top:4px">${a.detail}</div>
+      </div>
+      <div style="font-size:12px;color:var(--mist);white-space:nowrap;margin-left:12px">${a.time}</div>
+    </div>
+  `).join('');
+
+  openModal(`
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:600px">
+        <div class="modal-head">
+          <div>
+            <div class="modal-title">Activity Log</div>
+            <div class="modal-subtitle">Your recent actions in TRAPICO</div>
+          </div>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body" style="padding:0">
+          ${activityHtml}
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closeModal()">Close</button>
+        </div>
+      </div>
+    </div>`);
+}
+

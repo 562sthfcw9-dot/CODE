@@ -1,0 +1,1898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TRAPICO — Traffic Complaint System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<!-- Leaflet loaded inline via CDN with fallback handled in JS -->
+<style>
+/* ============================================================
+   TRAPICO — Complete Styles
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600&family=Barlow:wght@300;400;500;600&display=swap');
+
+:root {
+  --ink:       #0A0A0A;
+  --ink-mid:   #1C1C1C;
+  --ink-soft:  #2E2E2E;
+  --steel:     #4A4A4A;
+  --mist:      #8A8A8A;
+  --border:    #D0D0D0;
+  --surface:   #F7F7F7;
+  --white:     #FFFFFF;
+  --accent:    #E63946;
+  --amber:     #F4A261;
+  --green:     #2A9D5C;
+  --blue:      #2563EB;
+  --yellow:    #EAB308;
+  --font-head: 'Barlow Condensed', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-body: 'Barlow', sans-serif;
+  --sidebar-w: 240px;
+  --topbar-h:  60px;
+}
+*, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
+html, body { height:100%; }
+body {
+  font-family: var(--font-body);
+  background: var(--surface);
+  color: var(--ink);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+h1,h2,h3,h4 { font-family: var(--font-head); font-weight:700; letter-spacing:-0.02em; }
+a { text-decoration:none; color:inherit; }
+.mono { font-family: var(--font-mono); }
+.hidden { display:none !important; }
+
+/* ── APP SHELL ──────── */
+.app-shell { display:flex; min-height:100vh; }
+
+/* ── SIDEBAR ──────── */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--ink);
+  display:flex; flex-direction:column;
+  position:fixed; top:0; left:0; bottom:0;
+  z-index:100; overflow-y:auto; scrollbar-width:none;
+}
+.sidebar::-webkit-scrollbar { display:none; }
+.sidebar-logo { padding:24px 24px 20px; border-bottom:1px solid rgba(255,255,255,0.07); }
+.sidebar-logo .mark { font-family:var(--font-head); font-weight:800; font-size:22px; color:#fff; letter-spacing:-0.03em; }
+.sidebar-logo .sub { font-family:var(--font-mono); font-size:10px; color:var(--mist); letter-spacing:0.1em; text-transform:uppercase; }
+.sidebar-role-badge { margin:16px 24px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); padding:10px 14px; display:flex; align-items:center; gap:10px; }
+.srb-icon { font-size:18px; }
+.srb-name { font-family:var(--font-head); font-size:14px; color:#fff; font-weight:600; }
+.srb-label { font-family:var(--font-mono); font-size:10px; color:var(--mist); text-transform:uppercase; letter-spacing:0.08em; }
+.sidebar-nav { flex:1; padding:12px 0; }
+.nav-section-label { font-family:var(--font-mono); font-size:10px; color:rgba(255,255,255,0.25); text-transform:uppercase; letter-spacing:0.12em; padding:16px 24px 6px; }
+.nav-item { display:flex; align-items:center; gap:12px; padding:10px 24px; cursor:pointer; color:rgba(255,255,255,0.55); font-size:14px; font-weight:500; transition:all 0.12s; position:relative; user-select:none; }
+.nav-item:hover { color:#fff; background:rgba(255,255,255,0.04); }
+.nav-item.active { color:#fff; background:rgba(255,255,255,0.07); }
+.nav-item.active::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--accent); }
+.nav-icon { font-size:15px; width:20px; text-align:center; flex-shrink:0; }
+.nav-badge { margin-left:auto; background:var(--accent); color:#fff; font-family:var(--font-mono); font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; }
+.sidebar-footer { padding:16px 24px; border-top:1px solid rgba(255,255,255,0.07); }
+.logout-btn { display:flex; align-items:center; gap:10px; color:rgba(255,255,255,0.4); font-size:13px; cursor:pointer; transition:color 0.12s; }
+.logout-btn:hover { color:var(--accent); }
+
+/* ── MAIN ──────── */
+.main-content { flex:1; margin-left:var(--sidebar-w); display:flex; flex-direction:column; min-height:100vh; }
+
+/* ── TOPBAR ──────── */
+.topbar { height:var(--topbar-h); background:#fff; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 28px; position:sticky; top:0; z-index:50; }
+#topbar-title { font-family:var(--font-head); font-size:20px; font-weight:700; }
+.topbar-right { display:flex; align-items:center; gap:20px; }
+.notif-btn { position:relative; cursor:pointer; font-size:18px; padding:6px; }
+.notif-dot { width:8px; height:8px; background:var(--accent); border-radius:50%; position:absolute; top:4px; right:4px; border:2px solid #fff; }
+.notif-panel { position:absolute; top:calc(100% + 12px); right:0; width:300px; background:#fff; border:1px solid var(--border); box-shadow:0 8px 32px rgba(0,0,0,0.12); z-index:200; }
+.notif-head { font-family:var(--font-head); font-size:14px; font-weight:700; padding:14px 16px; border-bottom:1px solid var(--border); }
+.notif-item { display:flex; align-items:flex-start; gap:10px; padding:12px 16px; border-bottom:1px solid var(--surface); font-size:13px; }
+.notif-item:last-child { border-bottom:none; }
+.notif-dot-inline { width:8px; height:8px; background:var(--blue); border-radius:50%; flex-shrink:0; margin-top:4px; }
+.notif-msg { font-weight:500; line-height:1.4; }
+.notif-time { font-family:var(--font-mono); font-size:11px; color:var(--mist); margin-top:2px; }
+.notif-mark-read { padding:10px 16px; text-align:center; font-family:var(--font-mono); font-size:11px; color:var(--blue); cursor:pointer; border-top:1px solid var(--border); }
+.notif-mark-read:hover { background:var(--surface); }
+.user-chip { display:flex; align-items:center; gap:10px; cursor:pointer; }
+.user-avatar { width:34px; height:34px; background:var(--ink); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:var(--font-head); font-size:13px; font-weight:700; overflow:hidden; }
+.user-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.user-chip-name { font-size:14px; font-weight:600; }
+
+/* ── PAGE BODY ──────── */
+.page-body { padding:28px; flex:1; }
+.page-section { animation:fadeIn 0.2s ease; }
+
+/* ── CARDS ──────── */
+.card { background:#fff; border:1px solid var(--border); margin-bottom:20px; }
+.card-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); }
+.card-title { font-family:var(--font-head); font-size:16px; font-weight:700; }
+.card-body { padding:20px; }
+
+/* ── STATS ──────── */
+.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px; }
+.stat-card { background:#fff; border:1px solid var(--border); padding:20px; }
+.stat-card.accent { border-top:3px solid var(--accent); }
+.stat-card.green  { border-top:3px solid var(--green);  }
+.stat-card-label { font-family:var(--font-mono); font-size:11px; color:var(--mist); text-transform:uppercase; letter-spacing:0.08em; }
+.stat-card-val { font-family:var(--font-head); font-size:40px; font-weight:800; line-height:1; margin:6px 0 2px; }
+.stat-card-val .unit { font-size:18px; color:var(--mist); }
+.stat-card-sub { font-size:12px; color:var(--mist); }
+
+/* ── TABLES ──────── */
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; }
+th { font-family:var(--font-head); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; padding:10px 16px; border-bottom:2px solid var(--ink); text-align:left; white-space:nowrap; }
+td { padding:12px 16px; border-bottom:1px solid var(--surface); font-size:13px; vertical-align:middle; }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:rgba(0,0,0,0.01); }
+.track-id { font-family:var(--font-mono); font-size:12px; font-weight:500; }
+
+/* ── BADGES ──────── */
+.badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; font-family:var(--font-mono); font-size:11px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; }
+.badge-submitted  { background:#EFF6FF; color:#1E40AF; border:1px solid #BFDBFE; }
+.badge-verified   { background:#F0FDF4; color:#065F46; border:1px solid #BBF7D0; }
+.badge-assigned   { background:#FFFBEB; color:#92400E; border:1px solid #FDE68A; }
+.badge-progress   { background:#FFF7ED; color:#C2410C; border:1px solid #FED7AA; }
+.badge-resolved   { background:#F0FDF4; color:#14532D; border:1px solid #86EFAC; }
+.badge-closed     { background:#F3F4F6; color:#374151; border:1px solid #D1D5DB; }
+.badge-rejected   { background:#FFF1F2; color:#9F1239; border:1px solid #FECDD3; }
+.badge-cancelled  { background:#F5F5F5; color:#6B7280; border:1px solid #E5E7EB; }
+.badge-urgent     { background:#FFF1F2; color:#BE123C; border:1px solid #FECDD3; }
+.badge-high       { background:#FFF7ED; color:#C2410C; border:1px solid #FED7AA; }
+.badge-medium     { background:#FFFBEB; color:#92400E; border:1px solid #FDE68A; }
+.badge-low        { background:#F0FDF4; color:#065F46; border:1px solid #BBF7D0; }
+.priority-dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
+.dot-urgent { background:#BE123C; } .dot-high { background:#C2410C; } .dot-medium { background:#92400E; } .dot-low { background:#065F46; }
+.badge-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+
+/* ── BUTTONS ──────── */
+.btn-primary { background:var(--ink); color:#fff; border:none; padding:10px 20px; font-family:var(--font-head); font-size:15px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; cursor:pointer; transition:background 0.12s; }
+.btn-primary:hover { background:var(--ink-soft); }
+.btn-secondary { background:#fff; color:var(--ink); border:1.5px solid var(--border); padding:8px 16px; font-family:var(--font-head); font-size:13px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; cursor:pointer; transition:all 0.12s; }
+.btn-secondary:hover { border-color:var(--ink); }
+.btn-danger { background:var(--accent); color:#fff; border:none; padding:8px 16px; font-family:var(--font-head); font-size:13px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; cursor:pointer; transition:background 0.12s; }
+.btn-danger:hover { background:#c0303b; }
+.btn-sm { padding:5px 12px; font-size:12px; }
+.btn-row { display:flex; justify-content:space-between; align-items:center; padding-top:20px; border-top:1px solid var(--border); margin-top:20px; }
+
+/* ── FORMS ──────── */
+.form-group { margin-bottom:16px; }
+.form-group label { display:block; font-family:var(--font-head); font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px; color:var(--ink-soft); }
+.form-input, .form-select { width:100%; padding:10px 12px; border:1.5px solid var(--border); font-family:var(--font-body); font-size:14px; background:#fff; color:var(--ink); outline:none; transition:border-color 0.12s; }
+.form-input:focus, .form-select:focus { border-color:var(--ink); }
+.form-input::placeholder { color:var(--mist); }
+textarea.form-input { resize:vertical; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.form-row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+.char-count { font-family:var(--font-mono); font-size:11px; color:var(--mist); text-align:right; margin-top:4px; }
+.field-error { color:var(--accent); font-size:12px; margin-top:4px; font-family:var(--font-mono); }
+.form-input.error, .form-select.error { border-color:var(--accent); }
+
+/* ── TOGGLE ──────── */
+.toggle-row { display:flex; align-items:center; gap:12px; }
+.toggle-switch { position:relative; display:inline-block; width:44px; height:24px; flex-shrink:0; }
+.toggle-switch input { opacity:0; width:0; height:0; }
+.toggle-slider { position:absolute; cursor:pointer; inset:0; background:var(--border); transition:0.3s; border-radius:12px; }
+.toggle-slider:before { content:''; position:absolute; height:18px; width:18px; left:3px; bottom:3px; background:#fff; transition:0.3s; border-radius:50%; }
+input:checked + .toggle-slider { background:var(--green); }
+input:checked + .toggle-slider:before { transform:translateX(20px); }
+
+/* ── PRIORITY PILLS ──────── */
+.priority-pills { display:flex; gap:8px; flex-wrap:wrap; }
+.priority-pill { padding:8px 18px; border:1.5px solid var(--border); cursor:pointer; font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; transition:all 0.12s; user-select:none; }
+.priority-pill:hover { border-color:var(--ink); }
+.priority-pill.sel { background:var(--ink); color:#fff; border-color:var(--ink); }
+.priority-pill[data-p="urgent"].sel { background:var(--accent); border-color:var(--accent); }
+.priority-pill[data-p="high"].sel   { background:#C2410C; border-color:#C2410C; }
+.priority-pill[data-p="medium"].sel { background:#92400E; border-color:#92400E; }
+.priority-pill[data-p="low"].sel    { background:var(--green); border-color:var(--green); }
+
+/* ── STEPPER ──────── */
+.stepper { display:flex; align-items:center; margin-bottom:28px; padding:20px; background:#fff; border:1px solid var(--border); }
+.step { display:flex; align-items:center; gap:8px; }
+.step-num { width:28px; height:28px; border-radius:50%; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:12px; font-weight:600; color:var(--mist); }
+.step.active .step-num { background:var(--ink); border-color:var(--ink); color:#fff; }
+.step.done .step-num   { background:var(--green); border-color:var(--green); color:#fff; }
+.step-label { font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--mist); text-transform:uppercase; letter-spacing:0.04em; }
+.step.active .step-label { color:var(--ink); }
+.step-line { flex:1; height:1px; background:var(--border); margin:0 10px; }
+
+/* ── UPLOAD ──────── */
+.upload-box { border:2px dashed var(--border); padding:28px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px; cursor:pointer; transition:border-color 0.12s; }
+.upload-box:hover { border-color:var(--ink); }
+.upload-icon { font-size:28px; }
+.upload-text { font-size:13px; color:var(--mist); }
+.upload-sub  { font-family:var(--font-mono); font-size:11px; color:var(--border); }
+.file-preview { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+.file-chip { display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border); padding:6px 10px; font-family:var(--font-mono); font-size:12px; }
+.file-chip-remove { cursor:pointer; color:var(--mist); transition:color 0.12s; font-size:14px; }
+.file-chip-remove:hover { color:var(--accent); }
+
+/* ── MAP ──────── */
+#map-inner { user-select:none; }
+#map-inner img { user-select:none; -webkit-user-drag:none; }
+
+/* ── ALERT ──────── */
+.alert { padding:12px 16px; display:flex; align-items:flex-start; gap:10px; font-size:13px; margin-bottom:16px; border-left:3px solid; line-height:1.5; }
+.alert-warn    { background:#FFF7ED; border-color:var(--amber); color:#92400E; }
+.alert-danger  { background:#FFF1F2; border-color:var(--accent); color:#9F1239; }
+.alert-info    { background:#EFF6FF; border-color:var(--blue);   color:#1E40AF; }
+.alert-success { background:#F0FDF4; border-color:var(--green);  color:#065F46; }
+
+/* ── TIMELINE ──────── */
+.timeline { display:flex; flex-direction:column; }
+.timeline-item { display:flex; gap:16px; align-items:flex-start; position:relative; }
+.timeline-item::before { content:''; position:absolute; left:11px; top:26px; bottom:-4px; width:1px; background:var(--border); }
+.timeline-item:last-child::before { display:none; }
+.tl-dot { width:24px; height:24px; border-radius:50%; background:var(--surface); border:2px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:11px; margin-top:2px; }
+.tl-dot.done     { background:var(--green);  border-color:var(--green);  color:#fff; }
+.tl-dot.rejected { background:var(--accent); border-color:var(--accent); color:#fff; }
+.tl-dot.cancelled{ background:var(--steel);  border-color:var(--steel);  color:#fff; }
+.tl-content { padding-bottom:20px; flex:1; }
+.tl-label { font-family:var(--font-head); font-size:15px; font-weight:600; }
+.tl-time  { font-family:var(--font-mono); font-size:11px; color:var(--mist); margin-top:2px; }
+.tl-note  { font-size:13px; color:var(--steel); margin-top:6px; }
+
+/* ── MODAL ──────── */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:500; display:flex; align-items:center; justify-content:center; padding:24px; backdrop-filter:blur(2px); animation:fadeIn 0.15s ease; }
+.modal { background:#fff; width:100%; max-width:560px; max-height:90vh; overflow-y:auto; }
+.modal.modal-lg { max-width:680px; }
+.modal-head { display:flex; align-items:center; justify-content:space-between; padding:20px 24px; border-bottom:2px solid var(--ink); position:sticky; top:0; background:#fff; z-index:1; }
+.modal-title { font-family:var(--font-head); font-size:20px; font-weight:700; }
+.modal-subtitle { font-size:13px; color:var(--mist); margin-top:2px; }
+.modal-close { cursor:pointer; font-size:20px; color:var(--steel); transition:color 0.12s; background:none; border:none; line-height:1; }
+.modal-close:hover { color:var(--accent); }
+.modal-body { padding:24px; }
+.modal-footer { padding:16px 24px; border-top:1px solid var(--border); display:flex; gap:12px; justify-content:flex-end; position:sticky; bottom:0; background:#fff; }
+
+/* ── RATING ──────── */
+.rating-section { margin-top:20px; padding-top:20px; border-top:1px solid var(--border); }
+.star-row { font-size:28px; letter-spacing:4px; cursor:pointer; margin-top:6px; }
+.star { color:var(--border); transition:color 0.1s; }
+.star.filled { color:var(--amber); }
+
+/* ── TOAST ──────── */
+.toast { position:fixed; bottom:32px; right:32px; background:var(--ink); color:#fff; padding:14px 20px; font-size:13px; z-index:999; max-width:380px; box-shadow:0 8px 32px rgba(0,0,0,0.3); opacity:0; transform:translateY(8px); transition:opacity 0.2s ease, transform 0.2s ease; }
+.toast.toast-visible { opacity:1; transform:translateY(0); }
+
+/* ── BRGY GRID ──────── */
+.brgy-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px; padding:20px; }
+.brgy-card { padding:16px 14px; border:1px solid var(--border); text-align:center; transition:border-color 0.12s; }
+.brgy-card:hover { border-color:var(--steel); }
+.brgy-card-icon { font-size:22px; margin-bottom:8px; }
+.brgy-card-name { font-family:var(--font-head); font-size:14px; font-weight:700; }
+.brgy-card-label { font-family:var(--font-mono); font-size:10px; color:var(--mist); margin-top:3px; text-transform:uppercase; letter-spacing:0.08em; }
+.brgy-card-dot { width:6px; height:6px; border-radius:50%; background:var(--green); display:inline-block; margin-right:4px; vertical-align:middle; }
+
+/* ── PROFILE ──────── */
+.profile-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.detail-item label { font-family:var(--font-mono); font-size:11px; color:var(--mist); text-transform:uppercase; letter-spacing:0.08em; display:block; margin-bottom:3px; }
+.detail-item span { font-size:14px; font-weight:600; }
+.profile-avatar-section { display:flex; flex-direction:column; align-items:center; padding:24px; border-bottom:1px solid var(--border); gap:12px; }
+.profile-avatar-wrap { position:relative; width:90px; height:90px; }
+.profile-avatar-img { width:90px; height:90px; border-radius:50%; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-family:var(--font-head); font-size:28px; font-weight:800; overflow:hidden; }
+.profile-avatar-img img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.profile-avatar-edit { position:absolute; bottom:0; right:0; width:26px; height:26px; background:var(--ink); border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:12px; border:2px solid #fff; }
+.profile-name { font-family:var(--font-head); font-size:24px; font-weight:800; text-align:center; }
+.profile-role { font-size:13px; color:var(--mist); text-align:center; }
+.profile-status { display:inline-flex; align-items:center; gap:6px; background:#F0FDF4; color:var(--green); border:1px solid #BBF7D0; padding:4px 12px; font-family:var(--font-mono); font-size:11px; font-weight:600; }
+
+/* ── REVIEW SUMMARY ──────── */
+.review-summary { background:var(--surface); border:1px solid var(--border); padding:16px; margin-bottom:20px; }
+.review-summary-title { font-family:var(--font-head); font-size:14px; font-weight:700; margin-bottom:12px; }
+.review-row { display:flex; gap:12px; font-size:13px; padding-bottom:6px; }
+.review-label { color:var(--mist); width:120px; flex-shrink:0; }
+.review-value { font-weight:600; }
+
+/* ── EMPTY STATE ──────── */
+.empty-state { padding:60px 24px; text-align:center; color:var(--mist); }
+.empty-icon  { font-size:48px; margin-bottom:16px; }
+.empty-title { font-family:var(--font-head); font-size:20px; color:var(--steel); margin-bottom:8px; }
+.empty-sub   { font-size:13px; }
+
+/* ── SECTION TITLE ──────── */
+.section-title { font-family:var(--font-head); font-size:15px; font-weight:700; margin-bottom:12px; }
+
+/* ── COMPLAINT DESC ──────── */
+.complaint-desc { padding:12px; background:var(--surface); border:1px solid var(--border); font-size:13px; line-height:1.6; margin-bottom:16px; }
+
+/* ── KEYFRAMES ──────── */
+@keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── AUTH PAGES ──────── */
+.auth-shell { min-height:100vh; background:var(--surface); display:flex; align-items:center; justify-content:center; padding:40px; }
+.auth-card { background:#fff; border:1px solid var(--border); width:100%; max-width:440px; }
+.auth-header { padding:32px 32px 24px; border-bottom:2px solid var(--ink); }
+.auth-header .mark { font-family:var(--font-head); font-size:28px; font-weight:800; }
+.auth-header .sub { font-family:var(--font-mono); font-size:11px; color:var(--mist); letter-spacing:0.1em; text-transform:uppercase; margin-top:4px; }
+.auth-header h2 { font-size:22px; margin-top:20px; }
+.auth-body { padding:28px 32px; }
+.auth-switch { text-align:center; padding:16px 32px; border-top:1px solid var(--border); font-size:13px; color:var(--mist); }
+.auth-switch span { color:var(--ink); font-weight:600; cursor:pointer; }
+.auth-switch span:hover { text-decoration:underline; }
+.tabs-auth { display:flex; border-bottom:2px solid var(--border); margin-bottom:24px; }
+.tab-auth { padding:10px 20px; font-family:var(--font-head); font-size:14px; font-weight:600; color:var(--mist); cursor:pointer; letter-spacing:0.04em; text-transform:uppercase; border-bottom:2px solid transparent; margin-bottom:-2px; transition:all 0.12s; }
+.tab-auth.active { color:var(--ink); border-bottom-color:var(--ink); }
+
+/* ── PW STRENGTH ──────── */
+.pw-strength { margin-top:6px; height:4px; background:var(--border); }
+.pw-strength-fill { height:100%; transition:width 0.3s, background 0.3s; }
+
+/* ── QUICK STATS CARD ──────── */
+.qs-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--surface); font-size:14px; }
+.qs-row:last-child { border-bottom:none; }
+.qs-label { color:var(--steel); }
+.qs-val { font-family:var(--font-mono); font-weight:600; }
+
+/* Tab system */
+.tabs { display:flex; border-bottom:2px solid var(--border); margin-bottom:24px; }
+.tab { padding:12px 20px; font-family:var(--font-head); font-size:14px; font-weight:600; color:var(--mist); cursor:pointer; letter-spacing:0.04em; text-transform:uppercase; border-bottom:2px solid transparent; margin-bottom:-2px; transition:all 0.12s; user-select:none; }
+.tab:hover { color:var(--ink); }
+.tab.active { color:var(--ink); border-bottom-color:var(--ink); }
+
+/* notification badge on profile */
+.notif-count-badge { position:absolute; top:-4px; right:-4px; background:var(--accent); color:#fff; font-family:var(--font-mono); font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; border:2px solid #fff; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ AUTH PAGES ═══════════════════════ -->
+<div id="auth-shell" class="auth-shell">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="mark">TRAPICO</div>
+      <div class="sub">Traffic Complaint System</div>
+      <h2 id="auth-heading">Sign In</h2>
+    </div>
+    <div class="auth-body">
+      <!-- LOGIN FORM -->
+      <div id="login-form">
+        <div class="form-group">
+          <label>Username</label>
+          <input id="login-user" class="form-input" type="text" placeholder="Enter username"/>
+          <div class="field-error hidden" id="err-login-user"></div>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input id="login-pass" class="form-input" type="password" placeholder="Enter password"/>
+          <div class="field-error hidden" id="err-login-pass"></div>
+        </div>
+        <div class="field-error hidden" id="err-login-general" style="margin-bottom:12px"></div>
+        <button class="btn-primary" style="width:100%;padding:12px" onclick="doLogin()">Sign In →</button>
+        <div style="margin-top:16px;text-align:center;font-size:13px;color:var(--mist)">
+          Don't have an account? <span style="color:var(--ink);font-weight:600;cursor:pointer" onclick="showRegister()">Register here</span>
+        </div>
+      </div>
+
+      <!-- REGISTER FORM -->
+      <div id="register-form" class="hidden">
+        <div class="form-row">
+          <div class="form-group">
+            <label>First Name *</label>
+            <input id="reg-fname" class="form-input" type="text" placeholder="Juan"/>
+            <div class="field-error hidden" id="err-reg-fname"></div>
+          </div>
+          <div class="form-group">
+            <label>Last Name *</label>
+            <input id="reg-lname" class="form-input" type="text" placeholder="Dela Cruz"/>
+            <div class="field-error hidden" id="err-reg-lname"></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Username *</label>
+          <input id="reg-user" class="form-input" type="text" placeholder="e.g. jdelacruz"/>
+          <div class="field-error hidden" id="err-reg-user"></div>
+        </div>
+        <div class="form-group">
+          <label>Email Address *</label>
+          <input id="reg-email" class="form-input" type="email" placeholder="juan@example.com"/>
+          <div class="field-error hidden" id="err-reg-email"></div>
+        </div>
+        <div class="form-group">
+          <label>Phone Number *</label>
+          <input id="reg-phone" class="form-input" type="text" placeholder="+63 9XX XXX XXXX"/>
+          <div class="field-error hidden" id="err-reg-phone"></div>
+        </div>
+        <div class="form-group">
+          <label>Barangay *</label>
+          <select id="reg-brgy" class="form-select">
+            <option value="">— Select barangay —</option>
+            <option>Commonwealth</option>
+            <option>Batasan Hills</option>
+            <option>Central</option>
+            <option>Sto. Cristo</option>
+          </select>
+          <div class="field-error hidden" id="err-reg-brgy"></div>
+        </div>
+        <div class="form-group">
+          <label>Password *</label>
+          <input id="reg-pass" class="form-input" type="password" placeholder="Min. 8 chars, 1 uppercase, 1 number" oninput="checkPwStrength(this.value)"/>
+          <div class="pw-strength"><div class="pw-strength-fill" id="pw-strength-bar" style="width:0%"></div></div>
+          <div class="field-error hidden" id="err-reg-pass"></div>
+        </div>
+        <div class="form-group">
+          <label>Confirm Password *</label>
+          <input id="reg-pass2" class="form-input" type="password" placeholder="Repeat password"/>
+          <div class="field-error hidden" id="err-reg-pass2"></div>
+        </div>
+        <button class="btn-primary" style="width:100%;padding:12px" onclick="doRegister()">Create Account →</button>
+        <div style="margin-top:16px;text-align:center;font-size:13px;color:var(--mist)">
+          Already have an account? <span style="color:var(--ink);font-weight:600;cursor:pointer" onclick="showLogin()">Sign in</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ MAIN APP ═══════════════════════ -->
+<div id="main-app" class="app-shell hidden">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="mark">TRAPICO</div>
+      <div class="sub">Traffic Complaint System</div>
+    </div>
+    <div class="sidebar-role-badge">
+      <span class="srb-icon">🧑‍💼</span>
+      <div>
+        <div class="srb-name" id="sb-name">—</div>
+        <div class="srb-label">Civilian User</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Navigation</div>
+      <div class="nav-item active" id="nav-dash"       onclick="setActivePage('dash')">       <span class="nav-icon">🏠</span> Dashboard        </div>
+      <div class="nav-item"        id="nav-report"     onclick="setActivePage('report')">     <span class="nav-icon">📝</span> File a Complaint  </div>
+      <div class="nav-item"        id="nav-complaints" onclick="setActivePage('complaints')"> <span class="nav-icon">📋</span> My Complaints     <span class="nav-badge" id="badge-complaints">0</span></div>
+      <div class="nav-item"        id="nav-profile"    onclick="setActivePage('profile')">    <span class="nav-icon">👤</span> My Profile        </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="logout-btn" onclick="doLogout()"><span>⬡</span><span>Sign Out</span></div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+    <header class="topbar">
+      <span id="topbar-title">Dashboard</span>
+      <div class="topbar-right">
+        <div class="notif-btn" id="notif-btn" onclick="toggleNotif()" style="position:relative">
+          🔔
+          <div class="notif-dot" id="notif-dot"></div>
+          <div class="notif-panel hidden" id="notif-panel" onclick="event.stopPropagation()">
+            <div class="notif-head">Notifications</div>
+            <div id="notif-list"></div>
+            <div class="notif-mark-read" onclick="markAllRead()">Mark all as read</div>
+          </div>
+        </div>
+        <div class="user-chip">
+          <div class="user-avatar" id="topbar-avatar">—</div>
+          <span class="user-chip-name" id="topbar-username">—</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="page-body">
+
+      <!-- ════════════ PAGE: DASHBOARD ════════════ -->
+      <section id="page-dash" class="page-section">
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-card-label">Total Filed</div><div class="stat-card-val" id="stat-total">—</div><div class="stat-card-sub">All time complaints</div></div>
+          <div class="stat-card accent"><div class="stat-card-label">Active</div><div class="stat-card-val" id="stat-active">—</div><div class="stat-card-sub">Pending resolution</div></div>
+          <div class="stat-card green"><div class="stat-card-label">Resolved</div><div class="stat-card-val" id="stat-resolved">—</div><div class="stat-card-sub">Successfully closed</div></div>
+          <div class="stat-card"><div class="stat-card-label">Avg. Response</div><div class="stat-card-val">24<span class="unit">min</span></div><div class="stat-card-sub">System average</div></div>
+        </div>
+        <div class="alert alert-info">📍 <div>You are registered under <strong id="user-brgy-info">Barangay Commonwealth, Quezon City</strong>. You may file complaints for any of the 4 covered barangays.</div></div>
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Recent Complaints</span>
+            <button class="btn-secondary btn-sm" onclick="setActivePage('report')">+ File New</button>
+          </div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Tracking ID</th><th>Category</th><th>Priority</th><th>Status</th><th>Submitted</th><th>Action</th></tr></thead>
+            <tbody id="dash-recent-tbody"></tbody></table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="card-title">System Coverage — Active Barangays</span></div>
+          <div class="brgy-grid" id="brgy-grid"></div>
+        </div>
+      </section>
+
+      <!-- ════════════ PAGE: FILE COMPLAINT ════════════ -->
+      <section id="page-report" class="page-section hidden">
+        <div class="alert alert-info">🗺️ <div>You have <strong>30 minutes</strong> from submission to cancel your complaint. After Dispatch validation, changes are locked.</div></div>
+
+        <div class="stepper" id="stepper">
+          <div class="step active" id="step-1"><div class="step-num">1</div><span class="step-label">Location</span></div>
+          <div class="step-line"></div>
+          <div class="step" id="step-2"><div class="step-num">2</div><span class="step-label">Details</span></div>
+          <div class="step-line"></div>
+          <div class="step" id="step-3"><div class="step-num">3</div><span class="step-label">Evidence</span></div>
+        </div>
+
+        <!-- STEP 1 -->
+        <div class="card" id="form-step-1">
+          <div class="card-head"><span class="card-title">Category &amp; Location</span></div>
+          <div style="padding:20px">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Complaint Category *</label>
+                <select id="f-cat" class="form-select">
+                  <option value="">— Select category —</option>
+                  <option>Illegal Parking</option><option>Traffic Obstruction</option>
+                  <option>Road Damage</option><option>Accident</option>
+                  <option>Signal Malfunction</option><option>Traffic Violation</option>
+                </select>
+                <div class="field-error hidden" id="err-f-cat"></div>
+              </div>
+              <div class="form-group">
+                <label>Barangay *</label>
+                <select id="f-brgy" class="form-select">
+                  <option>Commonwealth</option><option>Batasan Hills</option>
+                  <option>Central</option><option>Sto. Cristo</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Pin Incident Location on Map *</label>
+              <!-- MAP CONTAINER -->
+              <div id="map-container" style="position:relative;margin-top:6px;border:1.5px solid var(--border);overflow:hidden;">
+                <!-- OSM iframe as base tile layer -->
+                <div id="map-inner" style="width:100%;height:260px;background:#e8e8e8;position:relative;cursor:crosshair;overflow:hidden;" onclick="mapClicked(event)">
+                  <iframe id="map-iframe"
+                    style="width:100%;height:100%;border:none;pointer-events:none;display:block;"
+                    src="about:blank"
+                    title="Map">
+                  </iframe>
+                  <!-- Pin overlay -->
+                  <div id="map-pin" style="display:none;position:absolute;transform:translate(-50%,-100%);z-index:10;pointer-events:none;font-size:28px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));">📍</div>
+                  <!-- Grid overlay for visual appeal -->
+                  <div style="position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(0,0,0,0.04) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(0,0,0,0.04) 40px);"></div>
+                  <!-- Loading / instruction overlay -->
+                  <div id="map-overlay" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(232,232,232,0.92);pointer-events:none;">
+                    <div style="font-size:36px;">🗺️</div>
+                    <div style="font-family:var(--font-head);font-size:15px;font-weight:700;">Loading Map…</div>
+                    <div style="font-family:var(--font-mono);font-size:11px;color:var(--mist);">Quezon City, Philippines</div>
+                  </div>
+                </div>
+                <!-- Search bar on map -->
+                <div style="position:absolute;top:10px;left:10px;right:10px;z-index:20;display:flex;gap:6px;">
+                  <input id="map-search-input" class="form-input" type="text" placeholder="Search address or landmark…" style="flex:1;background:rgba(255,255,255,0.95);backdrop-filter:blur(4px);font-size:13px;padding:8px 12px;" onkeydown="if(event.key==='Enter')searchAddress()"/>
+                  <button class="btn-secondary btn-sm" onclick="searchAddress()" style="background:rgba(255,255,255,0.95);white-space:nowrap;">🔍 Search</button>
+                </div>
+              </div>
+              <div class="map-controls" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span class="map-coords" id="map-coords-display" style="flex:1;font-family:var(--font-mono);font-size:12px;color:var(--mist);">📍 Click on map or search to pin location</span>
+                <button class="btn-secondary btn-sm" onclick="detectGPS()">📡 Use My GPS</button>
+                <button class="btn-secondary btn-sm" onclick="clearPin()">✕ Clear</button>
+              </div>
+              <div class="field-error hidden" id="err-f-map"></div>
+            </div>
+            <div class="form-group">
+              <label>Specific Address / Landmark *</label>
+              <input id="f-address" class="form-input" type="text" placeholder="e.g. Commonwealth Ave corner Don Fabian St, near Jollibee"/>
+              <div class="field-error hidden" id="err-f-address"></div>
+            </div>
+            <div class="btn-row">
+              <div></div>
+              <button class="btn-primary" onclick="step1Next()">Next: Details →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 2 -->
+        <div class="card hidden" id="form-step-2">
+          <div class="card-head"><span class="card-title">Incident Details</span></div>
+          <div style="padding:20px">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Date of Incident *</label>
+                <input id="f-date" class="form-input" type="date"/>
+                <div class="field-error hidden" id="err-f-date"></div>
+              </div>
+              <div class="form-group">
+                <label>Time of Incident *</label>
+                <input id="f-time" class="form-input" type="time"/>
+                <div class="field-error hidden" id="err-f-time"></div>
+              </div>
+            </div>
+            <div class="alert alert-warn hidden" id="future-time-warn">⏰ <div>The date/time you entered is <strong>in the future</strong>. Please enter the actual date and time of the incident.</div></div>
+            <div class="form-group">
+              <label>Priority Level</label>
+              <div class="priority-pills" style="margin-top:6px">
+                <div class="priority-pill" data-p="low"    onclick="selectPriority(this)">Low</div>
+                <div class="priority-pill sel" data-p="medium" onclick="selectPriority(this)">Medium</div>
+                <div class="priority-pill" data-p="high"   onclick="selectPriority(this)">High</div>
+                <div class="priority-pill" data-p="urgent" onclick="selectPriority(this)">Urgent</div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Incident Description * <span style="font-weight:400">(min. 50 characters)</span></label>
+              <textarea id="f-desc" class="form-input" rows="5" placeholder="Describe the traffic incident in detail…" oninput="updateCharCount(this)"></textarea>
+              <div class="char-count" id="char-count">0 / 50 min</div>
+              <div class="field-error hidden" id="err-f-desc"></div>
+            </div>
+            <div class="btn-row">
+              <button class="btn-secondary" onclick="goToStep(1)">← Back</button>
+              <button class="btn-primary" onclick="step2Next()">Next: Evidence →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div class="card hidden" id="form-step-3">
+          <div class="card-head"><span class="card-title">Evidence &amp; Submit</span></div>
+          <div style="padding:20px">
+            <div class="form-group">
+              <label>Upload Evidence (Optional)</label>
+              <div class="upload-box" id="upload-box" onclick="document.getElementById('file-input').click()" ondrop="handleDrop(event)" ondragover="event.preventDefault()">
+                <div class="upload-icon">📎</div>
+                <div class="upload-text">Drag &amp; drop or click to upload</div>
+                <div class="upload-sub">JPG, PNG, MP4 · Max 50MB per file</div>
+              </div>
+              <input type="file" id="file-input" style="display:none" multiple accept=".jpg,.jpeg,.png,.mp4" onchange="handleFileSelect(this.files)"/>
+              <div class="file-preview" id="file-preview"></div>
+              <div class="field-error hidden" id="err-files"></div>
+            </div>
+            <div class="form-group" style="margin-bottom:20px">
+              <label style="margin-bottom:10px">Reporting Options</label>
+              <div class="toggle-row">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="anon-toggle" onchange="toggleAnonWarning(this)"/>
+                  <span class="toggle-slider"></span>
+                </label>
+                <span style="font-size:14px;font-weight:500">Submit anonymously — your name will appear as "Anonymous"</span>
+              </div>
+            </div>
+            <div class="alert alert-warn hidden" id="anon-warning">🔒 <div>Your identity will be hidden from field officers. Dispatch can still verify your account for quality control.</div></div>
+            <div class="review-summary" id="review-summary"></div>
+            <div class="btn-row">
+              <button class="btn-secondary" onclick="goToStep(2)">← Back</button>
+              <button class="btn-primary" onclick="submitComplaint()">Submit Complaint →</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════ PAGE: MY COMPLAINTS ════════════ -->
+      <section id="page-complaints" class="page-section hidden">
+        <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+          <input class="form-input" style="max-width:280px" id="complaints-search" placeholder="Search by ID or category…" oninput="renderComplaintsTable()"/>
+          <select class="form-select" style="width:auto" id="complaints-filter" onchange="renderComplaintsTable()">
+            <option value="">All Statuses</option>
+            <option value="submitted">Submitted</option>
+            <option value="verified">Verified</option>
+            <option value="assigned">Assigned</option>
+            <option value="in_progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+            <option value="rejected">Rejected</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="table-wrap">
+            <table><thead><tr><th>Tracking ID</th><th>Category</th><th>Barangay</th><th>Priority</th><th>Status</th><th>Date Filed</th><th>Actions</th></tr></thead>
+            <tbody id="complaints-tbody"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════ PAGE: PROFILE ════════════ -->
+      <section id="page-profile" class="page-section hidden">
+        <div class="profile-grid">
+
+          <!-- Left: Avatar + Info -->
+          <div>
+            <div class="card" style="margin-bottom:20px">
+              <div class="profile-avatar-section">
+                <div class="profile-avatar-wrap">
+                  <div class="profile-avatar-img" id="profile-avatar-big">JD</div>
+                  <div class="profile-avatar-edit" onclick="document.getElementById('avatar-upload').click()" title="Change photo">✎</div>
+                  <input type="file" id="avatar-upload" style="display:none" accept=".jpg,.jpeg,.png" onchange="handleAvatarUpload(this)"/>
+                </div>
+                <div class="profile-name" id="profile-display-name">Juan Dela Cruz</div>
+                <div class="profile-role">Regular User · <span style="color:var(--mist)">Verified</span></div>
+                <div class="profile-status">✓ Account Active</div>
+              </div>
+              <div style="padding:16px 20px">
+                <div class="section-title" style="margin-bottom:16px">Quick Stats</div>
+                <div class="qs-row"><span class="qs-label">Total Complaints</span><span class="qs-val" id="qs-total">—</span></div>
+                <div class="qs-row"><span class="qs-label">Resolved</span><span class="qs-val" id="qs-resolved">—</span></div>
+                <div class="qs-row"><span class="qs-label">Pending</span><span class="qs-val" id="qs-pending">—</span></div>
+                <div class="qs-row"><span class="qs-label">Cancelled</span><span class="qs-val" id="qs-cancelled">—</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Edit Forms -->
+          <div>
+            <div class="card" style="margin-bottom:20px">
+              <div class="card-head">
+                <span class="card-title">Personal Information</span>
+                <button class="btn-secondary btn-sm" id="edit-btn" onclick="toggleProfileEdit()">✎ Edit</button>
+              </div>
+              <div style="padding:20px">
+                <!-- VIEW MODE -->
+                <div id="profile-view">
+                  <div class="detail-grid">
+                    <div class="detail-item"><label>Full Name</label><span id="pv-name">—</span></div>
+                    <div class="detail-item"><label>Username</label><span id="pv-user">—</span></div>
+                    <div class="detail-item"><label>Email</label><span id="pv-email">—</span></div>
+                    <div class="detail-item"><label>Phone</label><span id="pv-phone">—</span></div>
+                    <div class="detail-item"><label>Barangay</label><span id="pv-brgy">—</span></div>
+                    <div class="detail-item"><label>City</label><span>Quezon City</span></div>
+                  </div>
+                </div>
+                <!-- EDIT MODE -->
+                <div id="profile-edit" class="hidden">
+                  <div class="form-row">
+                    <div class="form-group"><label>First Name</label><input id="pe-fname" class="form-input" type="text"/><div class="field-error hidden" id="err-pe-fname"></div></div>
+                    <div class="form-group"><label>Last Name</label><input id="pe-lname" class="form-input" type="text"/><div class="field-error hidden" id="err-pe-lname"></div></div>
+                  </div>
+                  <div class="form-group"><label>Email</label><input id="pe-email" class="form-input" type="email"/><div class="field-error hidden" id="err-pe-email"></div></div>
+                  <div class="form-group"><label>Phone</label><input id="pe-phone" class="form-input" type="text"/><div class="field-error hidden" id="err-pe-phone"></div></div>
+                  <div class="form-group">
+                    <label>Barangay</label>
+                    <select id="pe-brgy" class="form-select">
+                      <option>Commonwealth</option><option>Batasan Hills</option><option>Central</option><option>Sto. Cristo</option>
+                    </select>
+                  </div>
+                  <div class="btn-row">
+                    <button class="btn-secondary" onclick="toggleProfileEdit()">Cancel</button>
+                    <button class="btn-primary" onclick="saveProfile()">Save Changes</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><span class="card-title">Security — Change Password</span></div>
+              <div style="padding:20px">
+                <div class="form-group"><label>Current Password</label><input id="pw-current" class="form-input" type="password" placeholder="Enter current password"/><div class="field-error hidden" id="err-pw-current"></div></div>
+                <div class="form-group"><label>New Password</label><input id="pw-new" class="form-input" type="password" placeholder="Min. 8 characters, 1 uppercase, 1 number" oninput="checkPwStrength(this.value)"/><div class="pw-strength"><div class="pw-strength-fill" id="pw-strength-bar2" style="width:0%"></div></div><div class="field-error hidden" id="err-pw-new"></div></div>
+                <div class="form-group"><label>Confirm New Password</label><input id="pw-confirm" class="form-input" type="password" placeholder="Repeat new password"/><div class="field-error hidden" id="err-pw-confirm"></div></div>
+                <div class="alert alert-warn">🔐 <div>Must be at least 8 characters, one uppercase letter, and one number.</div></div>
+                <button class="btn-primary" style="width:100%;margin-top:8px" onclick="updatePassword()">Update Password</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- MODAL CONTAINER -->
+<div id="modal-container"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast-el"></div>
+
+<script>
+'use strict';
+
+/* ══════════════════════════════════════════════════════════
+   DATA STORE
+══════════════════════════════════════════════════════════ */
+
+// Registered users (in-memory, survives session via sessionStorage-ish approach)
+let USERS_DB = JSON.parse(localStorage.getItem('trapico_users') || '{}');
+
+// Seed a default user if none exists
+if (!USERS_DB['jdoe']) {
+  USERS_DB['jdoe'] = {
+    username:'jdoe', password:'Password1', fname:'Juan', lname:'Dela Cruz',
+    email:'jdoe@gmail.com', phone:'+63 912 345 6789', brgy:'Commonwealth',
+    avatar:null
+  };
+  localStorage.setItem('trapico_users', JSON.stringify(USERS_DB));
+}
+
+let CURRENT_USER = null;
+
+// Complaints stored per-user
+function getComplaintsKey(u){ return 'trapico_complaints_' + u; }
+function loadComplaints(u){ return JSON.parse(localStorage.getItem(getComplaintsKey(u)) || '[]'); }
+function saveComplaints(u, arr){ localStorage.setItem(getComplaintsKey(u), JSON.stringify(arr)); }
+
+// Seed complaints for jdoe if empty
+(function seedComplaints(){
+  const key = getComplaintsKey('jdoe');
+  if (!localStorage.getItem(key)) {
+    const seed = [
+      { id:'TRAPICO-2026-03-000016', cat:'Traffic Obstruction', brgy:'Commonwealth', priority:'urgent', status:'submitted',    date:'2026-03-24 10:42', anon:true,  desc:'Large truck blocking the intersection at Commonwealth Ave. corner Don Fabian.',                    address:'Commonwealth Ave corner Don Fabian St', lat:14.6760, lng:121.0437 },
+      { id:'TRAPICO-2026-03-000015', cat:'Illegal Parking',     brgy:'Batasan Hills', priority:'high',   status:'verified',    date:'2026-03-24 10:15', anon:false, desc:'Multiple vehicles illegally parked along the service road near SM Fairview.',                     address:'Service road near SM Fairview', lat:14.6915, lng:121.0507 },
+      { id:'TRAPICO-2026-03-000014', cat:'Road Damage',         brgy:'Central',       priority:'medium', status:'in_progress', date:'2026-03-24 09:30', anon:false, desc:'Large pothole near Timog Ave. causing traffic slowdown and vehicle damage risk.',                  address:'Timog Ave near Central', lat:14.6390, lng:121.0100 },
+      { id:'TRAPICO-2026-03-000013', cat:'Signal Malfunction',  brgy:'Sto. Cristo',   priority:'high',   status:'assigned',    date:'2026-03-24 08:55', anon:false, desc:'Traffic light at the intersection has been flashing red since 7am.',                               address:'Main intersection Sto. Cristo', lat:14.6280, lng:120.9872 },
+      { id:'TRAPICO-2026-03-000012', cat:'Accident',            brgy:'Commonwealth',  priority:'urgent', status:'closed',      date:'2026-03-24 07:20', anon:false, desc:'Minor collision between a jeepney and motorcycle. Road partially blocked.',                        address:'Commonwealth Ave', lat:14.6780, lng:121.0456 },
+      { id:'TRAPICO-2026-03-000011', cat:'Traffic Violation',   brgy:'Batasan Hills', priority:'low',    status:'rejected',    date:'2026-03-23 16:40', anon:false, desc:'Motorcycles using the sidewalk as a shortcut near Batasan Hills National HS.',                     address:'Batasan Hills National HS', lat:14.6888, lng:121.0497, rejectionReason:'Duplicate submission detected within 100m radius of complaint #000010.' },
+      { id:'TRAPICO-2026-03-000010', cat:'Road Damage',         brgy:'Commonwealth',  priority:'medium', status:'cancelled',   date:'2026-03-22 14:10', anon:false, desc:'Cracked road surface near Philcoa causing vehicles to swerve.',                                    address:'Near Philcoa', lat:14.6700, lng:121.0350 },
+    ];
+    localStorage.setItem(key, JSON.stringify(seed));
+  }
+})();
+
+// Notifications per-user
+function getNotifsKey(u){ return 'trapico_notifs_' + u; }
+function loadNotifs(u){ return JSON.parse(localStorage.getItem(getNotifsKey(u)) || '[]'); }
+function saveNotifs(u, arr){ localStorage.setItem(getNotifsKey(u), JSON.stringify(arr)); }
+
+function seedNotifs(u){
+  const key = getNotifsKey(u);
+  if (!localStorage.getItem(key)) {
+    const seed = [
+      { id:1, msg:'Complaint #000016 received. Under review.', time:'18 min ago', read:false },
+      { id:2, msg:'Complaint #000015 has been verified by Dispatch.', time:'25 min ago', read:false },
+      { id:3, msg:'Complaint #000012 is now closed.', time:'1 hr ago', read:true },
+    ];
+    localStorage.setItem(key, JSON.stringify(seed));
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   AUTH
+══════════════════════════════════════════════════════════ */
+
+function showLogin(){
+  document.getElementById('login-form').classList.remove('hidden');
+  document.getElementById('register-form').classList.add('hidden');
+  document.getElementById('auth-heading').textContent = 'Sign In';
+}
+function showRegister(){
+  document.getElementById('login-form').classList.add('hidden');
+  document.getElementById('register-form').classList.remove('hidden');
+  document.getElementById('auth-heading').textContent = 'Create Account';
+}
+
+function showFieldError(id, msg){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.textContent = msg;
+  el.classList.toggle('hidden', !msg);
+  const input = el.previousElementSibling;
+  if(input && (input.tagName==='INPUT'||input.tagName==='SELECT'||input.tagName==='TEXTAREA')){
+    input.classList.toggle('error', !!msg);
+  }
+}
+
+function doLogin(){
+  const u = document.getElementById('login-user').value.trim();
+  const p = document.getElementById('login-pass').value;
+  let ok = true;
+  if(!u){ showFieldError('err-login-user','Username is required.'); ok=false; } else showFieldError('err-login-user','');
+  if(!p){ showFieldError('err-login-pass','Password is required.'); ok=false; } else showFieldError('err-login-pass','');
+  if(!ok) return;
+  const dbUser = USERS_DB[u];
+  if(!dbUser || dbUser.password !== p){ showFieldError('err-login-general','Invalid username or password.'); return; }
+  showFieldError('err-login-general','');
+  loginSuccess(u);
+}
+
+function doRegister(){
+  const fname = document.getElementById('reg-fname').value.trim();
+  const lname  = document.getElementById('reg-lname').value.trim();
+  const user   = document.getElementById('reg-user').value.trim();
+  const email  = document.getElementById('reg-email').value.trim();
+  const phone  = document.getElementById('reg-phone').value.trim();
+  const brgy   = document.getElementById('reg-brgy').value;
+  const pass   = document.getElementById('reg-pass').value;
+  const pass2  = document.getElementById('reg-pass2').value;
+  let ok = true;
+
+  if(!fname){ showFieldError('err-reg-fname','First name is required.'); ok=false; } else showFieldError('err-reg-fname','');
+  if(!lname){ showFieldError('err-reg-lname','Last name is required.'); ok=false; } else showFieldError('err-reg-lname','');
+  if(!user){ showFieldError('err-reg-user','Username is required.'); ok=false; }
+  else if(USERS_DB[user]){ showFieldError('err-reg-user','Username already taken.'); ok=false; }
+  else showFieldError('err-reg-user','');
+  if(!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)){ showFieldError('err-reg-email','Valid email required.'); ok=false; } else showFieldError('err-reg-email','');
+  if(!phone){ showFieldError('err-reg-phone','Phone number is required.'); ok=false; } else showFieldError('err-reg-phone','');
+  if(!brgy){ showFieldError('err-reg-brgy','Please select a barangay.'); ok=false; } else showFieldError('err-reg-brgy','');
+  if(!pass){ showFieldError('err-reg-pass','Password is required.'); ok=false; }
+  else if(pass.length < 8 || !/[A-Z]/.test(pass) || !/[0-9]/.test(pass)){ showFieldError('err-reg-pass','Min 8 chars, 1 uppercase, 1 number.'); ok=false; }
+  else showFieldError('err-reg-pass','');
+  if(pass !== pass2){ showFieldError('err-reg-pass2','Passwords do not match.'); ok=false; } else showFieldError('err-reg-pass2','');
+  if(!ok) return;
+
+  USERS_DB[user] = { username:user, password:pass, fname, lname, email, phone, brgy, avatar:null };
+  localStorage.setItem('trapico_users', JSON.stringify(USERS_DB));
+  saveComplaints(user, []);
+  showToast('Account created! Signing you in…');
+  setTimeout(() => loginSuccess(user), 800);
+}
+
+function loginSuccess(username){
+  CURRENT_USER = USERS_DB[username];
+  seedNotifs(username);
+  document.getElementById('auth-shell').classList.add('hidden');
+  document.getElementById('main-app').classList.remove('hidden');
+  initApp();
+}
+
+function doLogout(){
+  if(!confirm('Are you sure you want to sign out?')) return;
+  CURRENT_USER = null;
+  document.getElementById('main-app').classList.add('hidden');
+  document.getElementById('auth-shell').classList.remove('hidden');
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+  showFieldError('err-login-general','');
+  showLogin();
+  // Reset app state
+  uploadedFiles = [];
+  pinnedLat = null; pinnedLng = null;
+  mapInited = false;
+  const tl = document.getElementById('map-tile-layer');
+  if(tl) tl.innerHTML = '';
+  const ov = document.getElementById('map-overlay');
+  if(ov) ov.style.display = 'flex';
+}
+
+/* ══════════════════════════════════════════════════════════
+   INIT APP
+══════════════════════════════════════════════════════════ */
+
+function initApp(){
+  const u = CURRENT_USER;
+  const initials = (u.fname[0] + u.lname[0]).toUpperCase();
+  document.getElementById('sb-name').textContent = u.fname + ' ' + u.lname;
+  document.getElementById('topbar-username').textContent = u.fname + ' ' + u.lname;
+
+  // Avatar
+  if(u.avatar){
+    document.getElementById('topbar-avatar').innerHTML = `<img src="${u.avatar}"/>`;
+  } else {
+    document.getElementById('topbar-avatar').textContent = initials;
+  }
+
+  document.getElementById('user-brgy-info').textContent = 'Barangay ' + u.brgy + ', Quezon City';
+
+  // Set today's date in form
+  const today = new Date();
+  const yyyy = today.getFullYear(), mm = String(today.getMonth()+1).padStart(2,'0'), dd = String(today.getDate()).padStart(2,'0');
+  document.getElementById('f-date').value = `${yyyy}-${mm}-${dd}`;
+  const hh = String(today.getHours()).padStart(2,'0'), mi = String(today.getMinutes()).padStart(2,'0');
+  document.getElementById('f-time').value = `${hh}:${mi}`;
+
+  renderDashboard();
+  renderComplaintsTable();
+  renderBrgyGrid();
+  renderNotifs();
+  updateProfileView();
+  setActivePage('dash');
+}
+
+/* ══════════════════════════════════════════════════════════
+   NOTIFICATIONS
+══════════════════════════════════════════════════════════ */
+
+let notifOpen = false;
+
+function renderNotifs(){
+  const notifs = loadNotifs(CURRENT_USER.username);
+  const unread = notifs.filter(n => !n.read).length;
+  document.getElementById('notif-dot').style.display = unread > 0 ? 'block' : 'none';
+  const list = document.getElementById('notif-list');
+  if(!notifs.length){
+    list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mist);font-size:13px">No notifications</div>`;
+    return;
+  }
+  list.innerHTML = notifs.map(n => `
+    <div class="notif-item" style="${!n.read ? 'background:#EFF6FF' : ''}">
+      <div class="notif-dot-inline" style="${n.read ? 'background:var(--border)' : ''}"></div>
+      <div>
+        <div class="notif-msg">${n.msg}</div>
+        <div class="notif-time">${n.time}</div>
+      </div>
+    </div>`).join('');
+}
+
+function addNotif(msg){
+  if(!CURRENT_USER) return;
+  const notifs = loadNotifs(CURRENT_USER.username);
+  notifs.unshift({ id: Date.now(), msg, time:'Just now', read:false });
+  saveNotifs(CURRENT_USER.username, notifs);
+  renderNotifs();
+}
+
+function markAllRead(){
+  const notifs = loadNotifs(CURRENT_USER.username);
+  notifs.forEach(n => n.read = true);
+  saveNotifs(CURRENT_USER.username, notifs);
+  renderNotifs();
+}
+
+function toggleNotif(){
+  notifOpen = !notifOpen;
+  document.getElementById('notif-panel').classList.toggle('hidden', !notifOpen);
+}
+document.addEventListener('click', e => {
+  if(!e.target.closest('#notif-btn') && notifOpen){
+    document.getElementById('notif-panel').classList.add('hidden');
+    notifOpen = false;
+  }
+});
+
+/* ══════════════════════════════════════════════════════════
+   DASHBOARD
+══════════════════════════════════════════════════════════ */
+
+function renderDashboard(){
+  const all = loadComplaints(CURRENT_USER.username);
+  const active   = all.filter(c => !['closed','cancelled','rejected'].includes(c.status)).length;
+  const resolved = all.filter(c => ['resolved','closed'].includes(c.status)).length;
+  document.getElementById('stat-total').textContent    = all.length;
+  document.getElementById('stat-active').textContent   = active;
+  document.getElementById('stat-resolved').textContent = resolved;
+  document.getElementById('badge-complaints').textContent = active;
+
+  const tbody = document.getElementById('dash-recent-tbody');
+  if(!all.length){
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">No complaints yet</div><div class="empty-sub">File your first complaint using the sidebar.</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = all.slice(0,5).map(c => `
+    <tr>
+      <td class="track-id">${c.id}</td>
+      <td>${c.cat}</td>
+      <td>${priorityBadge(c.priority)}</td>
+      <td>${statusBadge(c.status)}</td>
+      <td class="mono" style="font-size:12px">${c.date}</td>
+      <td><button class="btn-secondary btn-sm" onclick="showTimeline('${c.id}')">Track</button></td>
+    </tr>`).join('');
+}
+
+function renderBrgyGrid(){
+  const barangays = ['Commonwealth','Batasan Hills','Central','Sto. Cristo'];
+  document.getElementById('brgy-grid').innerHTML = barangays.map(b => `
+    <div class="brgy-card">
+      <div class="brgy-card-icon">📍</div>
+      <div class="brgy-card-name">${b}</div>
+      <div class="brgy-card-label"><span class="brgy-card-dot"></span>Active</div>
+    </div>`).join('');
+}
+
+/* ══════════════════════════════════════════════════════════
+   MY COMPLAINTS TABLE
+══════════════════════════════════════════════════════════ */
+
+function renderComplaintsTable(){
+  const search    = (document.getElementById('complaints-search')?.value || '').toLowerCase();
+  const statusFil = document.getElementById('complaints-filter')?.value || '';
+  const all = loadComplaints(CURRENT_USER.username);
+  const list = all.filter(c => {
+    const ms = !search || c.id.toLowerCase().includes(search) || c.cat.toLowerCase().includes(search);
+    const mf = !statusFil || c.status === statusFil;
+    return ms && mf;
+  });
+  const tbody = document.getElementById('complaints-tbody');
+  if(!tbody) return;
+  if(!list.length){
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">No complaints found</div><div class="empty-sub">Try adjusting your search or filter.</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(c => `
+    <tr>
+      <td class="track-id">${c.id}</td>
+      <td>${c.cat}</td>
+      <td style="font-size:12px">${c.brgy}</td>
+      <td>${priorityBadge(c.priority)}</td>
+      <td>${statusBadge(c.status)}</td>
+      <td class="mono" style="font-size:12px">${c.date}</td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn-secondary btn-sm" onclick="showTimeline('${c.id}')">Track</button>
+        ${c.status==='submitted' ? `<button class="btn-danger btn-sm" onclick="cancelComplaint('${c.id}')">Cancel</button>` : ''}
+      </td>
+    </tr>`).join('');
+}
+
+function cancelComplaint(id){
+  if(!confirm('Are you sure you want to cancel this complaint?')) return;
+  const all = loadComplaints(CURRENT_USER.username);
+  const c = all.find(x => x.id === id);
+  if(c){ c.status = 'cancelled'; saveComplaints(CURRENT_USER.username, all); }
+  addNotif(`Complaint ${id.split('-').pop()} has been cancelled.`);
+  showToast('Complaint cancelled successfully.');
+  renderComplaintsTable();
+  renderDashboard();
+}
+
+/* ══════════════════════════════════════════════════════════
+   MAP — OpenStreetMap via iframe tiles + click-to-pin
+══════════════════════════════════════════════════════════ */
+
+// Map state
+let pinnedLat = null, pinnedLng = null;
+let mapCenterLat = 14.676, mapCenterLng = 121.043, mapZoom = 14;
+let mapInited = false;
+
+// Map pixel size (updated on init)
+let mapW = 600, mapH = 260;
+
+function initMap() {
+  if (mapInited) return;
+  mapInited = true;
+  const inner = document.getElementById('map-inner');
+  mapW = inner.offsetWidth || 600;
+  mapH = inner.offsetHeight || 260;
+  renderMapTiles(mapCenterLat, mapCenterLng, mapZoom);
+}
+
+function latLngToTile(lat, lng, zoom) {
+  const n = Math.pow(2, zoom);
+  const x = Math.floor((lng + 180) / 360 * n);
+  const latRad = lat * Math.PI / 180;
+  const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
+  return { x, y };
+}
+
+function tileToLatLng(tx, ty, zoom) {
+  const n = Math.pow(2, zoom);
+  const lng = tx / n * 360 - 180;
+  const latRad = Math.atan(Math.sinh(Math.PI * (1 - 2 * ty / n)));
+  const lat = latRad * 180 / Math.PI;
+  return { lat, lng };
+}
+
+function renderMapTiles(centerLat, centerLng, zoom) {
+  const inner = document.getElementById('map-inner');
+  mapW = inner.offsetWidth || 600;
+  mapH = inner.offsetHeight || 260;
+
+  const TILE = 256;
+  const center = latLngToTile(centerLat, centerLng, zoom);
+
+  // Fractional tile offset of center
+  const n = Math.pow(2, zoom);
+  const fracX = (centerLng + 180) / 360 * n;
+  const latRad = centerLat * Math.PI / 180;
+  const fracY = (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n;
+
+  // Pixel offset within center tile
+  const offsetX = (fracX - center.x) * TILE;
+  const offsetY = (fracY - center.y) * TILE;
+
+  // How many tiles we need
+  const tilesX = Math.ceil(mapW / TILE) + 2;
+  const tilesY = Math.ceil(mapH / TILE) + 2;
+
+  const startTX = center.x - Math.floor(tilesX / 2);
+  const startTY = center.y - Math.floor(tilesY / 2);
+
+  const startPixX = mapW / 2 - offsetX - Math.floor(tilesX / 2) * TILE;
+  const startPixY = mapH / 2 - offsetY - Math.floor(tilesY / 2) * TILE;
+
+  // Build tile HTML
+  const subdomains = ['a', 'b', 'c'];
+  let tilesHtml = '';
+  for (let ty = 0; ty < tilesY; ty++) {
+    for (let tx = 0; tx < tilesX; tx++) {
+      const tileX = startTX + tx;
+      const tileY = startTY + ty;
+      const sub = subdomains[(Math.abs(tileX + tileY)) % 3];
+      const px = Math.round(startPixX + tx * TILE);
+      const py = Math.round(startPixY + ty * TILE);
+      const url = `https://${sub}.tile.openstreetmap.org/${zoom}/${tileX}/${tileY}.png`;
+      tilesHtml += `<img src="${url}" style="position:absolute;left:${px}px;top:${py}px;width:${TILE}px;height:${TILE}px;image-rendering:auto;" draggable="false" crossorigin="anonymous"/>`;
+    }
+  }
+
+  // Remove old tile layer if exists
+  let tileLayer = document.getElementById('map-tile-layer');
+  if (!tileLayer) {
+    tileLayer = document.createElement('div');
+    tileLayer.id = 'map-tile-layer';
+    tileLayer.style.cssText = 'position:absolute;inset:0;z-index:1;';
+    inner.insertBefore(tileLayer, inner.firstChild);
+  }
+  tileLayer.innerHTML = tilesHtml;
+
+  // Attribution
+  let attr = document.getElementById('map-attr');
+  if (!attr) {
+    attr = document.createElement('div');
+    attr.id = 'map-attr';
+    attr.style.cssText = 'position:absolute;bottom:4px;right:4px;z-index:15;background:rgba(255,255,255,0.8);font-size:10px;padding:2px 5px;pointer-events:none;';
+    attr.textContent = '© OpenStreetMap contributors';
+    inner.appendChild(attr);
+  }
+
+  // Hide loading overlay
+  const overlay = document.getElementById('map-overlay');
+  if (overlay) setTimeout(() => overlay.style.display = 'none', 300);
+
+  // Move search bar and pin above tiles
+  const searchBar = inner.querySelector('[style*="position:absolute;top:10px"]');
+  const pin = document.getElementById('map-pin');
+
+  // Store state
+  mapCenterLat = centerLat;
+  mapCenterLng = centerLng;
+  mapZoom = zoom;
+
+  // Reposition pin if exists
+  if (pinnedLat !== null) repositionPin();
+}
+
+function mapClicked(e) {
+  const inner = document.getElementById('map-inner');
+  const rect = inner.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  const clickY = e.clientY - rect.top;
+
+  // Convert pixel to lat/lng
+  const TILE = 256;
+  const n = Math.pow(2, mapZoom);
+  const fracX = (mapCenterLng + 180) / 360 * n;
+  const latRad0 = mapCenterLat * Math.PI / 180;
+  const fracY = (1 - Math.log(Math.tan(latRad0) + 1 / Math.cos(latRad0)) / Math.PI) / 2 * n;
+
+  const dFracX = (clickX - mapW / 2) / TILE;
+  const dFracY = (clickY - mapH / 2) / TILE;
+
+  const newFracX = fracX + dFracX;
+  const newFracY = fracY + dFracY;
+
+  const lng = newFracX / n * 360 - 180;
+  const latRad = Math.atan(Math.sinh(Math.PI * (1 - 2 * newFracY / n)));
+  const lat = latRad * 180 / Math.PI;
+
+  placePin(lat, lng);
+  reverseGeocode(lat, lng);
+}
+
+function repositionPin() {
+  if (pinnedLat === null) return;
+  const inner = document.getElementById('map-inner');
+  const TILE = 256;
+  const n = Math.pow(2, mapZoom);
+  const fracX_center = (mapCenterLng + 180) / 360 * n;
+  const latRad0 = mapCenterLat * Math.PI / 180;
+  const fracY_center = (1 - Math.log(Math.tan(latRad0) + 1 / Math.cos(latRad0)) / Math.PI) / 2 * n;
+
+  const fracX_pin = (pinnedLng + 180) / 360 * n;
+  const latRadPin = pinnedLat * Math.PI / 180;
+  const fracY_pin = (1 - Math.log(Math.tan(latRadPin) + 1 / Math.cos(latRadPin)) / Math.PI) / 2 * n;
+
+  const px = mapW / 2 + (fracX_pin - fracX_center) * TILE;
+  const py = mapH / 2 + (fracY_pin - fracY_center) * TILE;
+
+  const pin = document.getElementById('map-pin');
+  pin.style.left = px + 'px';
+  pin.style.top = py + 'px';
+  pin.style.display = 'block';
+}
+
+function placePin(lat, lng) {
+  pinnedLat = lat;
+  pinnedLng = lng;
+  document.getElementById('map-coords-display').textContent = `📍 Pinned: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  document.getElementById('map-coords-display').style.color = 'var(--green)';
+  showFieldError('err-f-map', '');
+  repositionPin();
+}
+
+function clearPin() {
+  pinnedLat = null;
+  pinnedLng = null;
+  document.getElementById('map-pin').style.display = 'none';
+  document.getElementById('map-coords-display').textContent = '📍 Click on map or search to pin location';
+  document.getElementById('map-coords-display').style.color = 'var(--mist)';
+}
+
+function detectGPS() {
+  if (!navigator.geolocation) { showToast('Geolocation not supported by your browser.'); return; }
+  showToast('📡 Detecting your GPS location…');
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    mapCenterLat = lat;
+    mapCenterLng = lng;
+    renderMapTiles(lat, lng, 16);
+    placePin(lat, lng);
+    reverseGeocode(lat, lng);
+  }, err => {
+    showToast('Could not detect GPS. Please click on the map to pin.');
+  }, { timeout: 8000 });
+}
+
+function searchAddress() {
+  const q = document.getElementById('map-search-input').value.trim();
+  if (!q) return;
+  showToast('🔍 Searching "' + q + '"…');
+  fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' Quezon City Philippines')}&format=json&limit=1`)
+    .then(r => r.json())
+    .then(results => {
+      if (!results || !results.length) { showToast('Location not found. Try a more specific address.'); return; }
+      const r = results[0];
+      const lat = parseFloat(r.lat);
+      const lng = parseFloat(r.lon);
+      mapCenterLat = lat;
+      mapCenterLng = lng;
+      renderMapTiles(lat, lng, 16);
+      placePin(lat, lng);
+      document.getElementById('f-address').value = r.display_name.split(',').slice(0, 3).join(', ');
+      showToast('📍 Location found and pinned!');
+    })
+    .catch(() => showToast('Search failed. Please check your internet connection.'));
+}
+
+function reverseGeocode(lat, lng) {
+  fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+    .then(r => r.json())
+    .then(d => {
+      if (d && d.display_name) {
+        document.getElementById('f-address').value = d.display_name.split(',').slice(0, 3).join(', ');
+      }
+    }).catch(() => {});
+}
+
+/* ══════════════════════════════════════════════════════════
+   FILE UPLOAD
+══════════════════════════════════════════════════════════ */
+
+let uploadedFiles = [];
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+function handleFileSelect(files){
+  Array.from(files).forEach(f => addFile(f));
+}
+
+function handleDrop(e){
+  e.preventDefault();
+  handleFileSelect(e.dataTransfer.files);
+}
+
+function addFile(f){
+  if(!['image/jpeg','image/png','video/mp4'].includes(f.type)){
+    showFieldError('err-files','Only JPG, PNG, and MP4 files are allowed.'); return;
+  }
+  if(f.size > MAX_FILE_SIZE){
+    showFieldError('err-files',`"${f.name}" exceeds 50MB limit.`); return;
+  }
+  uploadedFiles.push(f);
+  showFieldError('err-files','');
+  renderFilePreview();
+}
+
+function removeFile(idx){
+  uploadedFiles.splice(idx,1);
+  renderFilePreview();
+}
+
+function renderFilePreview(){
+  const preview = document.getElementById('file-preview');
+  preview.innerHTML = uploadedFiles.map((f,i) => `
+    <div class="file-chip">
+      <span>${f.type.startsWith('video') ? '🎥' : '🖼️'}</span>
+      <span>${f.name}</span>
+      <span style="color:var(--mist);font-size:11px">(${(f.size/1024/1024).toFixed(1)}MB)</span>
+      <span class="file-chip-remove" onclick="removeFile(${i})">✕</span>
+    </div>`).join('');
+}
+
+/* ══════════════════════════════════════════════════════════
+   MULTI-STEP FORM
+══════════════════════════════════════════════════════════ */
+
+let currentStep = 1;
+
+function goToStep(step){
+  [1,2,3].forEach(n => {
+    document.getElementById('form-step-'+n).classList.add('hidden');
+    const el = document.getElementById('step-'+n);
+    el.classList.remove('active','done');
+    if(n < step) el.classList.add('done');
+    if(n === step) el.classList.add('active');
+    el.querySelector('.step-num').textContent = n < step ? '✓' : n;
+  });
+  document.getElementById('form-step-'+step).classList.remove('hidden');
+  currentStep = step;
+  if(step === 3) buildReviewSummary();
+  if(step === 1){ setTimeout(()=>{ if(mapInited) renderMapTiles(mapCenterLat, mapCenterLng, mapZoom); },200); }
+  window.scrollTo(0,0);
+}
+
+function step1Next(){
+  let ok = true;
+  if(!document.getElementById('f-cat').value){ showFieldError('err-f-cat','Please select a category.'); ok=false; } else showFieldError('err-f-cat','');
+  if(pinnedLat === null){ showFieldError('err-f-map','Please pin the incident location on the map.'); ok=false; } else showFieldError('err-f-map','');
+  const addr = document.getElementById('f-address').value.trim();
+  if(!addr){ showFieldError('err-f-address','Please enter a specific address or landmark.'); ok=false; } else showFieldError('err-f-address','');
+  if(!ok) return;
+  goToStep(2);
+}
+
+function step2Next(){
+  let ok = true;
+  const dateVal = document.getElementById('f-date').value;
+  const timeVal = document.getElementById('f-time').value;
+  if(!dateVal){ showFieldError('err-f-date','Date is required.'); ok=false; } else showFieldError('err-f-date','');
+  if(!timeVal){ showFieldError('err-f-time','Time is required.'); ok=false; } else showFieldError('err-f-time','');
+
+  // Future time validation
+  if(dateVal && timeVal){
+    const inputDT = new Date(`${dateVal}T${timeVal}`);
+    if(inputDT > new Date()){
+      document.getElementById('future-time-warn').classList.remove('hidden');
+      ok = false;
+    } else {
+      document.getElementById('future-time-warn').classList.add('hidden');
+    }
+  }
+
+  const desc = document.getElementById('f-desc').value.trim();
+  if(!desc || desc.length < 50){ showFieldError('err-f-desc','Description must be at least 50 characters.'); ok=false; } else showFieldError('err-f-desc','');
+  if(!ok) return;
+  goToStep(3);
+}
+
+function updateCharCount(el){
+  const len = el.value.length;
+  const counter = document.getElementById('char-count');
+  counter.textContent = `${len} / 50 min`;
+  counter.style.color = len >= 50 ? 'var(--green)' : 'var(--mist)';
+}
+
+function selectPriority(el){
+  document.querySelectorAll('.priority-pill').forEach(p => p.classList.remove('sel'));
+  el.classList.add('sel');
+}
+
+function toggleAnonWarning(cb){
+  document.getElementById('anon-warning').classList.toggle('hidden', !cb.checked);
+}
+
+function buildReviewSummary(){
+  const cat      = document.getElementById('f-cat').value || '—';
+  const brgy     = document.getElementById('f-brgy').value || '—';
+  const addr     = document.getElementById('f-address').value || '—';
+  const date     = document.getElementById('f-date').value || '—';
+  const time     = document.getElementById('f-time').value || '—';
+  const priority = document.querySelector('.priority-pill.sel')?.dataset.p || 'medium';
+  const anon     = document.getElementById('anon-toggle')?.checked ? 'Yes' : 'No';
+  const coords   = pinnedLat ? `${pinnedLat.toFixed(5)}, ${pinnedLng.toFixed(5)}` : '—';
+  const files    = uploadedFiles.length > 0 ? `${uploadedFiles.length} file(s)` : 'None';
+
+  const rows = [
+    ['Category',  cat], ['Barangay', brgy], ['Address', addr],
+    ['Coordinates', coords], ['Date', date], ['Time', time],
+    ['Priority',  priority.charAt(0).toUpperCase()+priority.slice(1)],
+    ['Anonymous', anon], ['Evidence', files],
+  ];
+  document.getElementById('review-summary').innerHTML = `
+    <div class="review-summary-title">📋 Review Your Submission</div>
+    ${rows.map(([l,v]) => `<div class="review-row"><span class="review-label">${l}:</span><span class="review-value">${v}</span></div>`).join('')}`;
+}
+
+function submitComplaint(){
+  const all = loadComplaints(CURRENT_USER.username);
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const seq = String(all.length + 1).padStart(6,'0');
+  const newId = `TRAPICO-${now.getFullYear()}-${pad(now.getMonth()+1)}-${seq}`;
+
+  const complaint = {
+    id: newId,
+    cat: document.getElementById('f-cat').value,
+    brgy: document.getElementById('f-brgy').value,
+    priority: document.querySelector('.priority-pill.sel')?.dataset.p || 'medium',
+    status: 'submitted',
+    date: dateStr,
+    anon: document.getElementById('anon-toggle').checked,
+    desc: document.getElementById('f-desc').value.trim(),
+    address: document.getElementById('f-address').value.trim(),
+    lat: pinnedLat, lng: pinnedLng,
+  };
+
+  all.unshift(complaint);
+  saveComplaints(CURRENT_USER.username, all);
+  addNotif(`Complaint ${seq} submitted. Tracking ID: ${newId}`);
+
+  showToast(`✓ Complaint submitted! Tracking ID: ${newId}`);
+
+  // Reset form
+  document.getElementById('f-cat').value = '';
+  document.getElementById('f-desc').value = '';
+  document.getElementById('f-address').value = '';
+  document.getElementById('char-count').textContent = '0 / 50 min';
+  document.getElementById('anon-toggle').checked = false;
+  uploadedFiles = [];
+  document.getElementById('file-preview').innerHTML = '';
+  clearPin();
+  selectPriority(document.querySelector('.priority-pill[data-p="medium"]'));
+  const today = new Date();
+  document.getElementById('f-date').value = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+  document.getElementById('f-time').value = `${pad(today.getHours())}:${pad(today.getMinutes())}`;
+
+  goToStep(1);
+  renderDashboard();
+  renderComplaintsTable();
+  setTimeout(() => setActivePage('complaints'), 1200);
+}
+
+/* ══════════════════════════════════════════════════════════
+   TIMELINE MODAL
+══════════════════════════════════════════════════════════ */
+
+function buildTimeline(c){
+  const done = (statuses) => statuses.includes(c.status);
+  let stages = [
+    { label:'Submitted',   time: c.date,          done: true,                                                              note:'Complaint received. Tracking ID generated.' },
+    { label:'Verified',    time:'—',               done: done(['verified','assigned','in_progress','resolved','closed']),   note:'Dispatch Officer validated complaint details.' },
+    { label:'Assigned',    time:'—',               done: done(['assigned','in_progress','resolved','closed']),              note:'Assigned to a field officer.' },
+    { label:'En Route',    time:'—',               done: done(['in_progress','resolved','closed']),                        note:'Officer departed to incident site.' },
+    { label:'In Progress', time:'—',               done: done(['in_progress','resolved','closed']),                        note:'Officer checked in at incident site.' },
+    { label:'Resolved',    time:'—',               done: done(['resolved','closed']),                                      note:'Resolution report submitted by officer.' },
+    { label:'Validated',   time:'—',               done: c.status==='closed',                                              note:'Dispatch Officer confirmed resolution.' },
+    { label:'Closed',      time:'—',               done: c.status==='closed',                                              note:'Case officially closed.' },
+  ];
+  if(c.status === 'rejected'){
+    stages = [
+      { label:'Submitted',  time: c.date, done:true, note:'Complaint received. Tracking ID generated.' },
+      { label:'Rejected',   time:'—',     done:true, rejected:true, note: c.rejectionReason || 'Complaint was rejected by dispatch.' },
+    ];
+  }
+  if(c.status === 'cancelled'){
+    stages = [
+      { label:'Submitted',  time: c.date, done:true, note:'Complaint received. Tracking ID generated.' },
+      { label:'Cancelled',  time:'—',     done:true, cancelled:true, note:'Complaint cancelled by user.' },
+    ];
+  }
+  return stages;
+}
+
+function showTimeline(id){
+  const all = loadComplaints(CURRENT_USER.username);
+  const c = all.find(x => x.id === id);
+  if(!c) return;
+  const stages = buildTimeline(c);
+
+  const stagesHtml = stages.map(s => `
+    <div class="timeline-item">
+      <div class="tl-dot ${s.done ? (s.rejected ? 'rejected' : s.cancelled ? 'cancelled' : 'done') : ''}">
+        ${s.done ? (s.rejected || s.cancelled ? '✕' : '✓') : '○'}
+      </div>
+      <div class="tl-content">
+        <div class="tl-label">${s.label}</div>
+        <div class="tl-time">${s.time}</div>
+        ${s.done ? `<div class="tl-note">${s.note}</div>` : ''}
+      </div>
+    </div>`).join('');
+
+  const rejectionHtml = c.status === 'rejected' ? `
+    <div class="alert alert-danger" style="margin-top:16px">⚠️ <div><strong>Rejection Reason:</strong><br>${c.rejectionReason || 'Complaint was rejected by dispatch.'}</div></div>` : '';
+
+  const ratingHtml = c.status === 'closed' ? `
+    <div class="rating-section">
+      <div class="section-title">Rate this Service</div>
+      <div class="star-row" id="star-row">
+        ${[1,2,3,4,5].map(n => `<span class="star${n <= (c.rating||0) ? ' filled' : ''}" onclick="setRating('${c.id}',${n})">★</span>`).join('')}
+      </div>
+      <textarea class="form-input" id="rating-comment" rows="2" placeholder="Optional comment…" style="margin-top:10px">${c.ratingComment||''}</textarea>
+      <div style="text-align:right;margin-top:10px">
+        <button class="btn-primary btn-sm" onclick="submitRating('${c.id}')">Submit Rating</button>
+      </div>
+    </div>` : '';
+
+  const mapHtml = c.lat && c.lng ? `
+    <div style="margin-bottom:16px">
+      <div class="section-title">Incident Location</div>
+      <div id="timeline-map" style="position:relative;height:180px;border:1px solid var(--border);overflow:hidden;background:#e8e8e8;" >
+        <div id="tl-tile-layer" style="position:absolute;inset:0;z-index:1;"></div>
+        <div style="position:absolute;inset:0;z-index:2;pointer-events:none;display:flex;align-items:center;justify-content:center;font-size:28px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));" id="tl-pin">📍</div>
+        <div style="position:absolute;bottom:4px;right:4px;z-index:3;background:rgba(255,255,255,0.8);font-size:10px;padding:2px 5px;">© OpenStreetMap</div>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--mist);margin-top:4px">${c.lat.toFixed(5)}, ${c.lng.toFixed(5)} · ${c.address||''}</div>
+    </div>` : '';
+
+  openModal(`
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal modal-lg">
+        <div class="modal-head">
+          <div>
+            <div class="modal-title">${c.id}</div>
+            <div class="modal-subtitle">${c.cat} · Brgy. ${c.brgy}</div>
+          </div>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="badge-row">${statusBadge(c.status)} ${priorityBadge(c.priority)}</div>
+          <div class="complaint-desc">${c.desc}</div>
+          ${mapHtml}
+          ${rejectionHtml}
+          <div class="section-title" style="margin-bottom:16px">Transparency Timeline</div>
+          <div class="timeline">${stagesHtml}</div>
+          ${ratingHtml}
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closeModal()">Close</button>
+        </div>
+      </div>
+    </div>`);
+
+  // Init timeline map
+  if(c.lat && c.lng){
+    setTimeout(() => {
+      const tlMap = document.getElementById('tl-tile-layer');
+      const tlContainer = document.getElementById('timeline-map');
+      if(!tlMap || !tlContainer) return;
+      const w = tlContainer.offsetWidth || 520;
+      const h = 180;
+      const zoom = 15;
+      const lat = c.lat, lng = c.lng;
+      const TILE = 256;
+      const n = Math.pow(2, zoom);
+      const fracX = (lng + 180) / 360 * n;
+      const latRad = lat * Math.PI / 180;
+      const fracY = (1 - Math.log(Math.tan(latRad) + 1/Math.cos(latRad))/Math.PI)/2*n;
+      const cTX = Math.floor(fracX), cTY = Math.floor(fracY);
+      const offX = (fracX - cTX) * TILE, offY = (fracY - cTY) * TILE;
+      const tilesX = Math.ceil(w/TILE)+2, tilesY = Math.ceil(h/TILE)+2;
+      const subs = ['a','b','c'];
+      let html = '';
+      for(let ty=0; ty<tilesY; ty++){
+        for(let tx=0; tx<tilesX; tx++){
+          const TX = cTX - Math.floor(tilesX/2) + tx;
+          const TY = cTY - Math.floor(tilesY/2) + ty;
+          const px = Math.round(w/2 - offX + (tx - Math.floor(tilesX/2))*TILE);
+          const py = Math.round(h/2 - offY + (ty - Math.floor(tilesY/2))*TILE);
+          const sub = subs[Math.abs(TX+TY)%3];
+          html += `<img src="https://${sub}.tile.openstreetmap.org/${zoom}/${TX}/${TY}.png" style="position:absolute;left:${px}px;top:${py}px;width:${TILE}px;height:${TILE}px;" crossorigin="anonymous"/>`;
+        }
+      }
+      tlMap.innerHTML = html;
+    }, 150);
+  }
+}
+
+function setRating(id, n){
+  document.querySelectorAll('#star-row .star').forEach((s,i) => s.classList.toggle('filled', i < n));
+  // Store temporarily
+  window._pendingRating = n;
+}
+
+function submitRating(id){
+  const all = loadComplaints(CURRENT_USER.username);
+  const c = all.find(x => x.id === id);
+  if(c){
+    c.rating = window._pendingRating || 0;
+    c.ratingComment = document.getElementById('rating-comment')?.value || '';
+    saveComplaints(CURRENT_USER.username, all);
+  }
+  showToast('Rating submitted. Thank you!');
+  closeModal();
+}
+
+/* ══════════════════════════════════════════════════════════
+   PROFILE
+══════════════════════════════════════════════════════════ */
+
+let isEditing = false;
+
+function updateProfileView(){
+  const u = CURRENT_USER;
+  const fullName = u.fname + ' ' + u.lname;
+  const initials = (u.fname[0] + u.lname[0]).toUpperCase();
+
+  document.getElementById('profile-display-name').textContent = fullName;
+  document.getElementById('pv-name').textContent  = fullName;
+  document.getElementById('pv-user').textContent  = u.username;
+  document.getElementById('pv-email').textContent = u.email;
+  document.getElementById('pv-phone').textContent = u.phone;
+  document.getElementById('pv-brgy').textContent  = u.brgy;
+
+  // Avatar
+  const bigAvatar = document.getElementById('profile-avatar-big');
+  if(u.avatar){ bigAvatar.innerHTML = `<img src="${u.avatar}"/>`; } else { bigAvatar.textContent = initials; }
+  const topAvatar = document.getElementById('topbar-avatar');
+  if(u.avatar){ topAvatar.innerHTML = `<img src="${u.avatar}"/>`; } else { topAvatar.textContent = initials; }
+  document.getElementById('sb-name').textContent = fullName;
+  document.getElementById('topbar-username').textContent = fullName;
+
+  // Quick stats
+  const all = loadComplaints(u.username);
+  document.getElementById('qs-total').textContent    = all.length;
+  document.getElementById('qs-resolved').textContent = all.filter(c => ['resolved','closed'].includes(c.status)).length;
+  document.getElementById('qs-pending').textContent  = all.filter(c => !['closed','cancelled','rejected'].includes(c.status)).length;
+  document.getElementById('qs-cancelled').textContent= all.filter(c => c.status==='cancelled').length;
+}
+
+function toggleProfileEdit(){
+  isEditing = !isEditing;
+  document.getElementById('profile-view').classList.toggle('hidden', isEditing);
+  document.getElementById('profile-edit').classList.toggle('hidden', !isEditing);
+  document.getElementById('edit-btn').textContent = isEditing ? '✕ Cancel' : '✎ Edit';
+  if(isEditing){
+    const u = CURRENT_USER;
+    document.getElementById('pe-fname').value = u.fname;
+    document.getElementById('pe-lname').value = u.lname;
+    document.getElementById('pe-email').value = u.email;
+    document.getElementById('pe-phone').value = u.phone;
+    document.getElementById('pe-brgy').value  = u.brgy;
+  }
+}
+
+function saveProfile(){
+  const fname = document.getElementById('pe-fname').value.trim();
+  const lname  = document.getElementById('pe-lname').value.trim();
+  const email  = document.getElementById('pe-email').value.trim();
+  const phone  = document.getElementById('pe-phone').value.trim();
+  const brgy   = document.getElementById('pe-brgy').value;
+  let ok = true;
+
+  if(!fname){ showFieldError('err-pe-fname','First name required.'); ok=false; } else showFieldError('err-pe-fname','');
+  if(!lname){ showFieldError('err-pe-lname','Last name required.'); ok=false; } else showFieldError('err-pe-lname','');
+  if(!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)){ showFieldError('err-pe-email','Valid email required.'); ok=false; } else showFieldError('err-pe-email','');
+  if(!phone){ showFieldError('err-pe-phone','Phone required.'); ok=false; } else showFieldError('err-pe-phone','');
+  if(!ok) return;
+
+  CURRENT_USER.fname = fname;
+  CURRENT_USER.lname = lname;
+  CURRENT_USER.email = email;
+  CURRENT_USER.phone = phone;
+  CURRENT_USER.brgy  = brgy;
+  USERS_DB[CURRENT_USER.username] = CURRENT_USER;
+  localStorage.setItem('trapico_users', JSON.stringify(USERS_DB));
+
+  isEditing = false;
+  document.getElementById('profile-view').classList.remove('hidden');
+  document.getElementById('profile-edit').classList.add('hidden');
+  document.getElementById('edit-btn').textContent = '✎ Edit';
+  updateProfileView();
+  showToast('Profile updated successfully.');
+}
+
+function handleAvatarUpload(input){
+  const f = input.files[0];
+  if(!f) return;
+  if(!['image/jpeg','image/png'].includes(f.type)){ showToast('Only JPG or PNG images allowed.'); return; }
+  if(f.size > 200*1024*1024){ showToast('Avatar image must be under 200MB.'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    CURRENT_USER.avatar = e.target.result;
+    USERS_DB[CURRENT_USER.username] = CURRENT_USER;
+    localStorage.setItem('trapico_users', JSON.stringify(USERS_DB));
+    updateProfileView();
+    showToast('Profile photo updated.');
+  };
+  reader.readAsDataURL(f);
+}
+
+function updatePassword(){
+  const cur = document.getElementById('pw-current').value;
+  const nw  = document.getElementById('pw-new').value;
+  const con = document.getElementById('pw-confirm').value;
+  let ok = true;
+
+  if(!cur){ showFieldError('err-pw-current','Current password required.'); ok=false; } else showFieldError('err-pw-current','');
+  if(cur && cur !== CURRENT_USER.password){ showFieldError('err-pw-current','Incorrect current password.'); ok=false; }
+  if(!nw){ showFieldError('err-pw-new','New password required.'); ok=false; }
+  else if(nw.length < 8 || !/[A-Z]/.test(nw) || !/[0-9]/.test(nw)){ showFieldError('err-pw-new','Min 8 chars, 1 uppercase, 1 number.'); ok=false; }
+  else showFieldError('err-pw-new','');
+  if(nw !== con){ showFieldError('err-pw-confirm','Passwords do not match.'); ok=false; } else showFieldError('err-pw-confirm','');
+  if(!ok) return;
+
+  CURRENT_USER.password = nw;
+  USERS_DB[CURRENT_USER.username] = CURRENT_USER;
+  localStorage.setItem('trapico_users', JSON.stringify(USERS_DB));
+  document.getElementById('pw-current').value = '';
+  document.getElementById('pw-new').value     = '';
+  document.getElementById('pw-confirm').value = '';
+  document.getElementById('pw-strength-bar2').style.width = '0%';
+  showToast('Password updated successfully.');
+}
+
+function checkPwStrength(val){
+  let score = 0;
+  if(val.length >= 8) score++;
+  if(/[A-Z]/.test(val)) score++;
+  if(/[0-9]/.test(val)) score++;
+  if(/[^A-Za-z0-9]/.test(val)) score++;
+  const colors = ['','var(--accent)','var(--amber)','var(--yellow)','var(--green)'];
+  const widths = ['0%','25%','50%','75%','100%'];
+  ['pw-strength-bar','pw-strength-bar2'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el){ el.style.width=widths[score]; el.style.background=colors[score]; }
+  });
+}
+
+/* ══════════════════════════════════════════════════════════
+   PAGE NAVIGATION
+══════════════════════════════════════════════════════════ */
+
+function setActivePage(pageId){
+  if(typeof pageId !== 'string' || !pageId){
+    console.warn('setActivePage called with invalid pageId:', pageId);
+    return;
+  }
+
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const nav = document.getElementById('nav-'+pageId);
+  if(nav) nav.classList.add('active');
+  document.querySelectorAll('.page-section').forEach(el => el.classList.add('hidden'));
+  const sec = document.getElementById('page-'+pageId);
+  if(sec) sec.classList.remove('hidden');
+  const titles = { dash:'Dashboard', report:'File a Complaint', complaints:'My Complaints', profile:'My Profile' };
+  const titleEl = document.getElementById('topbar-title');
+  if(titleEl) titleEl.textContent = titles[pageId] || 'Dashboard';
+  window.scrollTo(0,0);
+
+  // Init map when navigating to report
+  if(pageId === 'report'){
+    setTimeout(() => {
+      initMap();
+    }, 150);
+  }
+  // Update profile stats
+  if(pageId === 'profile') updateProfileView();
+}
+
+function logout(){
+  const base = window.location.pathname.replace(/\/[^\/]*$/, '/');
+  window.location.href = new URL('index.html', window.location.origin + base).href;
+}
+
+function navigateToPage(pageId){
+  const routeMap = { regular:'civilian.html', dispatch:'dispatch.html', field:'field.html' };
+  if(document.getElementById('nav-'+pageId)){
+    setActivePage(pageId);
+    return;
+  }
+  const fallback = routeMap[pageId];
+  if(fallback){
+    const base = window.location.pathname.replace(/\/[^\/]*$/, '/');
+    window.location.href = new URL(fallback, window.location.origin + base).href;
+  } else {
+    console.warn('navigateToPage could not resolve:', pageId);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   HTML HELPERS
+══════════════════════════════════════════════════════════ */
+
+function statusBadge(status){
+  const map = { submitted:'submitted', verified:'verified', assigned:'assigned', in_progress:'progress', resolved:'resolved', closed:'closed', rejected:'rejected', cancelled:'cancelled' };
+  const lbl = { submitted:'Submitted', verified:'Verified', assigned:'Assigned', in_progress:'In Progress', resolved:'Resolved', closed:'Closed', rejected:'Rejected', cancelled:'Cancelled' };
+  return `<span class="badge badge-${map[status]||'submitted'}">${lbl[status]||status}</span>`;
+}
+
+function priorityBadge(priority){
+  const cap = priority.charAt(0).toUpperCase()+priority.slice(1);
+  return `<span class="badge badge-${priority}"><span class="priority-dot dot-${priority}"></span>${cap}</span>`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   MODAL / TOAST
+══════════════════════════════════════════════════════════ */
+
+function openModal(html){ document.getElementById('modal-container').innerHTML = html; }
+function closeModal(){ document.getElementById('modal-container').innerHTML = ''; }
+
+function showToast(msg){
+  const t = document.getElementById('toast-el');
+  t.textContent = msg;
+  t.classList.add('toast-visible');
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(() => t.classList.remove('toast-visible'), 3500);
+}
+
+/* ══════════════════════════════════════════════════════════
+   KEYBOARD ESC to close modal
+══════════════════════════════════════════════════════════ */
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeModal(); });
+
+</script>
+</body>
+</html>

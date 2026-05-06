@@ -288,9 +288,15 @@ function renderPerformance() {
 }
 
 /* ── PAGE CHANGE HOOK ──────────────────────────────────────── */
-const __base_setActivePage = setActivePage;
+const __base_setActivePage = typeof setActivePage === 'function' ? setActivePage : null;
 function setActivePage(pageId) {
-  __base_setActivePage(pageId);
+  if (__base_setActivePage) {
+    __base_setActivePage(pageId);
+  } else {
+    console.warn('Base setActivePage not found; fallback route:', pageId);
+    navigateToPage(pageId);
+  }
+
   if (pageId === 'job') {
     checkedIn = false;
     startJobCountdown();

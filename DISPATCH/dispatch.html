@@ -7,13 +7,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="base.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="../base.css" />
   <link rel="stylesheet" href="dispatch.css" />
 </head>
 <body>
 
 <div class="app-shell">
-  
+
   <!-- ══════════════════════ SIDEBAR ══════════════════════ -->
   <aside class="sidebar">
     <div class="sidebar-logo">
@@ -29,12 +30,12 @@
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section-label">Navigation</div>
-      <div class="nav-item active" id="nav-dash"      onclick="setActivePage('dash')">      <span class="nav-icon">🖥️</span> Command Center      </div>
-      <div class="nav-item"        id="nav-queue"     onclick="setActivePage('queue')">     <span class="nav-icon">📥</span> Complaint Queue    <span class="nav-badge" id="badge-queue">5</span> </div>
-      <div class="nav-item"        id="nav-active"    onclick="setActivePage('active')">    <span class="nav-icon">🔴</span> Active Cases       <span class="nav-badge" id="badge-active">2</span> </div>
-      <div class="nav-item"        id="nav-officers"  onclick="setActivePage('officers')">  <span class="nav-icon">🛡️</span> Field Officers     </div>
-      <div class="nav-item"        id="nav-analytics" onclick="setActivePage('analytics')"> <span class="nav-icon">📊</span> Analytics          </div>
-      <div class="nav-item"        id="nav-profile"   onclick="setActivePage('profile')">   <span class="nav-icon">👤</span> My Profile         </div>
+      <div class="nav-item active" id="nav-dash"      onclick="openPage('dash')">      <span class="nav-icon">🖥️</span> Command Center      </div>
+      <div class="nav-item"        id="nav-queue"     onclick="openPage('queue')">     <span class="nav-icon">📥</span> Complaint Queue    <span class="nav-badge" id="badge-queue">5</span> </div>
+      <div class="nav-item"        id="nav-active"    onclick="openPage('active')">    <span class="nav-icon">🔴</span> Active Cases       <span class="nav-badge" id="badge-active">2</span> </div>
+      <div class="nav-item"        id="nav-officers"  onclick="openPage('officers')">  <span class="nav-icon">🛡️</span> Field Officers     </div>
+      <div class="nav-item"        id="nav-analytics" onclick="openPage('analytics')"> <span class="nav-icon">📊</span> Analytics          </div>
+      <div class="nav-item"        id="nav-profile"   onclick="openPage('profile')">   <span class="nav-icon">👤</span> My Profile        </div>
     </nav>
     <div class="sidebar-footer">
       <div class="logout-btn" onclick="logout()">
@@ -65,9 +66,9 @@
             <div class="notif-item"><div class="notif-dot-inline"></div><div><div class="notif-msg">Ofc. Bautista at capacity — reassignment needed.</div><div class="notif-time">30 min ago</div></div></div>
           </div>
         </div>
-        <div class="user-chip" style="cursor:pointer" onclick="setActivePage('profile')">
-          <div class="user-avatar">MR</div>
-          <span class="user-chip-name">Cpt. Reyes</span>
+        <div class="user-chip" style="cursor:pointer" onclick="openPage('profile')">
+          <img id="topbar-user-photo" src="https://i.pravatar.cc/120?img=68" alt="Cpt. Reyes" style="width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:8px" />
+          <span class="user-chip-name" id="topbar-user-name">Cpt. Reyes</span>
         </div>
       </div>
     </header>
@@ -91,7 +92,7 @@
           <div class="card">
             <div class="card-head">
               <span class="card-title">Pending Queue</span>
-              <button class="btn-secondary btn-sm" onclick="setActivePage('queue')">View All</button>
+              <button class="btn-secondary btn-sm" onclick="openPage('queue')">View All</button>
             </div>
             <div id="dash-queue-list"></div>
           </div>
@@ -105,12 +106,11 @@
 
         <!-- Officer availability map -->
         <div class="card">
-          <div class="card-head"><span class="card-title">Officer Availability Map</span></div>
-          <div class="map-placeholder" style="height:200px">
-            <div class="map-icon">🗺️</div>
-            <div class="map-label">Live officer positions — Leaflet.js + OpenStreetMap</div>
-            <div class="map-sub">Real-time GPS tracking · 4 officers shown</div>
+          <div class="card-head">
+            <span class="card-title">Live Officer Availability Map</span>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--mist)" id="map-last-updated">Updating…</span>
           </div>
+          <div id="officer-live-map" style="height:340px;border-radius:8px;overflow:hidden;"></div>
         </div>
       </section>
 
@@ -135,14 +135,13 @@
         <div class="tabs" id="queue-tabs">
           <div class="tab active" data-tab="submitted" onclick="switchQueueTab(this)">Submitted <span id="tab-submitted-count"></span></div>
           <div class="tab"        data-tab="verified"  onclick="switchQueueTab(this)">Verified — Unassigned <span id="tab-verified-count"></span></div>
-          <div class="tab"        data-tab="assigned"  onclick="switchQueueTab(this)">Assigned <span id="tab-assigned-count"></span></div>
         </div>
 
         <div class="card" style="padding:0">
           <div class="table-wrap">
             <table>
               <thead>
-                <tr><th>ID</th><th>Category</th><th>Reporter</th><th>Barangay</th><th>Priority</th><th>Date</th><th>Flags</th><th>Action</th></tr>
+                <tr><th>ID</th><th>Category</th><th>Reporter</th><th>Barangay</th><th>Priority</th><th>Date</th><th>Flags</th><th>Actions</th></tr>
               </thead>
               <tbody id="queue-tbody"></tbody>
             </table>
@@ -157,6 +156,13 @@
 
       <!-- ═══════════════ PAGE: FIELD OFFICERS ═══════════ -->
       <section id="page-officers" class="page-section hidden">
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-head">
+            <span class="card-title">Live Map — Officer Positions</span>
+            <button class="btn-secondary btn-sm" onclick="refreshOfficerMap()">↺ Refresh</button>
+          </div>
+          <div id="officers-page-map" style="height:320px;border-radius:8px;overflow:hidden;"></div>
+        </div>
         <div class="officer-grid" id="officers-grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))"></div>
       </section>
 
@@ -189,21 +195,78 @@
 
       <!-- ═══════════════ PAGE: DISPATCH PROFILE ═══════════ -->
       <section id="page-profile" class="page-section hidden">
-        <div class="card" style="max-width:600px">
-          <div class="card-head"><span class="card-title">My Profile</span></div>
-          <div style="padding: 20px;">
-            <div class="detail-item"><label>Name</label><span id="prof-name">—</span></div>
-            <div class="detail-item"><label>Position</label><span id="prof-position">—</span></div>
-            <div class="detail-item"><label>Email</label><span id="prof-email">—</span></div>
-            <div class="detail-item"><label>Phone</label><span id="prof-phone">—</span></div>
-            <div class="detail-item"><label>Badge ID</label><span id="prof-badgeid">—</span></div>
-            <div class="detail-item"><label>Barangay Assignment</label><span id="prof-brgy">—</span></div>
-            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
-              <div class="section-title">Statistics This Month</div>
-              <div class="detail-item"><label>Cases Processed</label><span id="prof-cases">0</span></div>
-              <div class="detail-item"><label>Cases Closed</label><span id="prof-closed">0</span></div>
-              <div class="detail-item"><label>Avg. Resolution Time</label><span id="prof-avgtime">—</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+          <div class="card" style="grid-column:1">
+            <div class="card-head"><span class="card-title">Personal Information</span></div>
+            <div style="padding:20px">
+              <div style="display:flex;align-items:center;margin-bottom:20px">
+                <div style="width:80px;height:80px;background:var(--accent);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:bold" id="prof-avatar">MR</div>
+                <div style="margin-left:16px">
+                  <div style="font-size:18px;font-weight:600" id="prof-name">—</div>
+                  <div style="color:var(--mist);font-size:14px" id="prof-position">—</div>
+                </div>
+              </div>
+              <div class="detail-item"><label>Badge ID</label><span id="prof-badgeid">—</span></div>
+              <div class="detail-item"><label>Email</label><span id="prof-email">—</span></div>
+              <div class="detail-item"><label>Phone</label><span id="prof-phone">—</span></div>
+              <div class="detail-item"><label>Primary Barangay</label><span id="prof-brgy">—</span></div>
+              <div class="detail-item"><label>Rank / Title</label><span id="prof-rank">Captain</span></div>
+              <div class="detail-item"><label>Department</label><span id="prof-dept">Traffic Management Division</span></div>
             </div>
+          </div>
+
+          <div class="card" style="grid-column:2">
+            <div class="card-head"><span class="card-title">Performance &amp; Statistics</span></div>
+            <div style="padding:20px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+                <div style="background:var(--subtle);padding:12px;border-radius:8px;text-align:center">
+                  <div style="font-size:24px;font-weight:800;color:var(--accent)" id="prof-cases">0</div>
+                  <div style="font-size:12px;color:var(--mist);margin-top:4px">Cases Processed</div>
+                </div>
+                <div style="background:var(--subtle);padding:12px;border-radius:8px;text-align:center">
+                  <div style="font-size:24px;font-weight:800;color:var(--green)" id="prof-closed">0</div>
+                  <div style="font-size:12px;color:var(--mist);margin-top:4px">Cases Closed</div>
+                </div>
+              </div>
+              <div class="detail-item"><label>Avg. Resolution Time</label><span id="prof-avgtime">—</span></div>
+              <div class="detail-item"><label>Current Case Load</label><span id="prof-caseload">0</span></div>
+              <div class="detail-item"><label>Officers Managed</label><span id="prof-officers-count">4</span></div>
+              <div class="detail-item"><label>Active Barangays</label><span id="prof-active-brgy">4</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:24px">
+          <div class="card-head"><span class="card-title">This Month's Performance</span></div>
+          <div style="padding:20px">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px">
+              <div style="background:var(--green-light);padding:16px;border-radius:8px;border-left:4px solid var(--green)">
+                <div style="color:var(--mist);font-size:12px;font-weight:600">Resolution Rate</div>
+                <div style="font-size:28px;font-weight:800;color:var(--green);margin-top:8px" id="prof-resolution-rate">91%</div>
+              </div>
+              <div style="background:var(--blue-light);padding:16px;border-radius:8px;border-left:4px solid var(--blue)">
+                <div style="color:var(--mist);font-size:12px;font-weight:600">On-Time Closure</div>
+                <div style="font-size:28px;font-weight:800;color:var(--blue);margin-top:8px" id="prof-on-time">94%</div>
+              </div>
+              <div style="background:var(--accent-light);padding:16px;border-radius:8px;border-left:4px solid var(--accent)">
+                <div style="color:var(--mist);font-size:12px;font-weight:600">Average Rating</div>
+                <div style="font-size:28px;font-weight:800;color:var(--accent);margin-top:8px" id="prof-avg-rating">4.6★</div>
+              </div>
+              <div style="background:#f3e5f5;padding:16px;border-radius:8px;border-left:4px solid #9c27b0">
+                <div style="color:var(--mist);font-size:12px;font-weight:600">Efficiency Score</div>
+                <div style="font-size:28px;font-weight:800;color:#9c27b0;margin-top:8px" id="prof-efficiency">92/100</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:24px">
+          <div class="card-head"><span class="card-title">Quick Actions</span></div>
+          <div style="padding:20px;display:flex;gap:12px;flex-wrap:wrap">
+            <button class="btn-secondary" onclick="editProfile()">✏️ Edit Profile</button>
+            <button class="btn-secondary" onclick="changePassword()">🔑 Change Password</button>
+            <button class="btn-secondary" onclick="viewActivityLog()">📋 Activity Log</button>
+            <button class="btn-secondary" onclick="logout()">⬡ Sign Out</button>
           </div>
         </div>
       </section>
@@ -216,11 +279,10 @@
 <!-- Review/Assign Modal -->
 <div id="modal-container"></div>
 
-<!-- Live Officer Map -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-
-<script src="data.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/sp38=" crossorigin=""></script>
+<script src="../data.js"></script>
+<script src="../api.js"></script>
 <script src="dispatch.js"></script>
+<script src="dispatch.backend.js"></script>
 </body>
 </html>

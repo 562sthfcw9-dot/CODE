@@ -16,28 +16,36 @@ function selectRole(el) {
   selectedRole = el.dataset.role;
 }
 
-function doLogin() {
+async function doLogin() {
   const user = document.getElementById('login-user').value.trim();
   const pass = document.getElementById('login-pass').value.trim();
   const errEl = document.getElementById('login-error');
 
   if (!user || !pass) {
+    errEl.textContent = 'Username and password are required.';
     errEl.classList.remove('hidden');
     return;
   }
   errEl.classList.add('hidden');
 
-  /* Store minimal session info in sessionStorage for the role pages */
-  sessionStorage.setItem('trapico_role', selectedRole);
-  sessionStorage.setItem('trapico_user', user);
+  try {
+    const response = await apiFetch('login.php', {
+      username: user,
+      password: pass,
+      role: selectedRole,
+    }, 'POST');
 
-  const routes = {
-    regular:  'civilian.html',
-    dispatch: 'dispatch.html',
-    field:    'field.html',
-  };
+    const routes = {
+      regular: 'civilian.html',
+      dispatch: 'dispatch.html',
+      field: 'field.html',
+    };
 
-  window.location.href = routes[selectedRole];
+    window.location.href = response.redirect || routes[selectedRole] || 'index.html';
+  } catch (error) {
+    errEl.textContent = error.message || 'Login failed.';
+    errEl.classList.remove('hidden');
+  }
 }
 
 /* Allow Enter key to submit */

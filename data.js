@@ -202,12 +202,19 @@ function setRating(n) {
 
 /* ── TOPBAR NAV HIGHLIGHT ──────────────────────────────────── */
 function setActivePage(pageId) {
+  if (typeof pageId !== 'string' || !pageId) {
+    console.warn('setActivePage called with invalid pageId:', pageId);
+    return;
+  }
+
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   const target = document.getElementById('nav-' + pageId);
   if (target) target.classList.add('active');
+
   document.querySelectorAll('.page-section').forEach(el => el.classList.add('hidden'));
   const section = document.getElementById('page-' + pageId);
   if (section) section.classList.remove('hidden');
+
   const titleMap = {
     dash:'Dashboard', report:'File a Complaint', complaints:'My Complaints',
     profile:'My Profile', queue:'Complaint Queue', active:'Active Cases',
@@ -219,6 +226,64 @@ function setActivePage(pageId) {
   window.scrollTo(0, 0);
 }
 
-function logout() {
-  window.location.href = 'index.html';
+function openPage(pageId) {
+  if (!pageId || typeof pageId !== 'string') {
+    console.warn('openPage called with invalid pageId:', pageId);
+    return;
+  }
+  if (typeof setActivePage === 'function' && document.getElementById('nav-' + pageId)) {
+    setActivePage(pageId);
+    return;
+  }
+  if (typeof navigateToPage === 'function') {
+    navigateToPage(pageId);
+    return;
+  }
+  console.warn('No routing handler found for pageId:', pageId);
+}
+
+window.addEventListener('hashchange', () => {
+  const hash = window.location.hash.replace('#', '');
+  if (hash && typeof setActivePage === 'function') {
+    setActivePage(hash);
+  }
+});
+
+async function logout() {
+  try {
+    await apiFetch('logout.php', {});
+  } catch (error) {
+    console.warn('Logout API error:', error.message);
+  }
+  const base = window.location.pathname.replace(/\/[^\/]*$/, '/');
+  const route = new URL('index.html', window.location.origin + base).href;
+  window.location.href = route;
+}
+
+function navigateToPage(pageId) {
+  const pageMap = {
+    dash:'dash', report:'report', complaints:'complaints', profile:'profile',
+    queue:'queue', active:'active', officers:'officers', analytics:'analytics',
+    assigned:'assigned', job:'job', history:'history', performance:'performance',
+  };
+
+  if (pageMap[pageId] && typeof setActivePage === 'function' && document.getElementById('nav-' + pageId)) {
+    setActivePage(pageId);
+    return;
+  }
+
+  if (pageMap[pageId]) {
+    const base = window.location.pathname.replace(/\/[^\/]*$/, '/');
+    window.location.href = new URL(`dispatch.html#${pageId}`, window.location.origin + base).href;
+    return;
+  }
+
+  const routeMap = { regular:'civilian.html', dispatch:'dispatch.html', field:'field.html' };
+  const fallback = routeMap[pageId];
+  if (fallback) {
+    const base = window.location.pathname.replace(/\/[^\/]*$/, '/');
+    window.location.href = new URL(fallback, window.location.origin + base).href;
+  } else {
+    console.warn('navigateToPage could not resolve pageId:', pageId);
+  }
 }
