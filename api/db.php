@@ -2,10 +2,10 @@
 declare(strict_types=1);
 
 // Update these values for your InfinityFree or local MySQL database.
-define('DB_HOST', 'sql110.infinityfree.com');
-define('DB_NAME', 'if0_41845667_XXX');
-define('DB_USER', 'if0_41845667');
-define('DB_PASS', 'Trapico26');
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'trapico');
+define('DB_USER', 'root');
+define('DB_PASS', '');
 
 define('UPLOAD_PATH', __DIR__ . '/../uploads');
 define('UPLOAD_URL', '/uploads');
