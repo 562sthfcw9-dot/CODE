@@ -17,8 +17,9 @@ async function initCivilian() {
     if (!user) return;
 
     CIVILIAN_USER = user;
-    document.getElementById('sb-name').textContent = user.name || user.username;
-    document.getElementById('topbar-username').textContent = user.name || user.username;
+    const displayName = user.name || user.username || 'Citizen';
+    document.getElementById('sb-name').textContent = displayName;
+    document.getElementById('topbar-username').textContent = displayName;
 
     await loadMyComplaints();
     renderDashboard();
@@ -232,10 +233,12 @@ async function submitComplaint() {
 function renderProfilePage() {
     if (!CIVILIAN_USER) return;
     document.getElementById('prof-name').textContent = CIVILIAN_USER.name || CIVILIAN_USER.username;
+    document.getElementById('prof-username').textContent = CIVILIAN_USER.username || '—';
     document.getElementById('prof-email').textContent = CIVILIAN_USER.email || '—';
     document.getElementById('prof-phone').textContent = CIVILIAN_USER.phone || '—';
     document.getElementById('prof-brgy').textContent = CIVILIAN_USER.home_barangay || '—';
     document.getElementById('edit-profile-name').value = CIVILIAN_USER.name || '';
+    document.getElementById('edit-profile-username').value = CIVILIAN_USER.username || '';
     document.getElementById('edit-profile-email').value = CIVILIAN_USER.email || '';
     document.getElementById('edit-profile-phone').value = CIVILIAN_USER.phone || '';
     document.getElementById('edit-profile-brgy').value = CIVILIAN_USER.home_barangay || '';

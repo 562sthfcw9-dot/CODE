@@ -59,8 +59,8 @@ try {
 $_SESSION['trapico_user'] = [
     'id' => $user['id'],
     'role' => $role,
-    'username' => $username,
-    'name' => $user['name'] ?? ($user['first_name'] . ' ' . $user['last_name']),
+    'username' => $user['username'] ?? $username,
+    'name' => trim($user['name'] ?? (($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''))),
     'email' => $user['email'] ?? '',
 ];
 
