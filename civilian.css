@@ -1,0 +1,82 @@
+/* ============================================================
+   TRAPICO — Civilian User Styles
+   Role-specific overrides and unique components
+   ============================================================ */
+
+/* ── PROFILE LAYOUT ────────────────────────────────────────── */
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+/* ── BARANGAY COVERAGE GRID ────────────────────────────────── */
+.brgy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.brgy-card {
+  padding: 16px 14px;
+  border: 1px solid var(--border);
+  text-align: center;
+  transition: border-color 0.12s;
+}
+.brgy-card:hover { border-color: var(--steel); }
+
+.brgy-card-icon { font-size: 22px; margin-bottom: 8px; }
+
+.brgy-card-name {
+  font-family: var(--font-head);
+  font-size: 14px;
+  font-weight: 700;
+}
+.brgy-card-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--mist);
+  margin-top: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.brgy-card-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  display: inline-block;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* ── REVIEW SUMMARY BOX ────────────────────────────────────── */
+.review-summary {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.review-summary-title {
+  font-family: var(--font-head);
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.review-row {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  padding-bottom: 6px;
+}
+.review-label { color: var(--mist); width: 90px; flex-shrink: 0; }
+.review-value { font-weight: 600; }
+
+/* ── STEPPER SCROLL HIDE ───────────────────────────────────── */
+#form-step-1, #form-step-2, #form-step-3 {
+  animation: fadeIn 0.2s ease;
+}
+
+/* ── RESPONSIVE ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .profile-grid { grid-template-columns: 1fr; }
+}

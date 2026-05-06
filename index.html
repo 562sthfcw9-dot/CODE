@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TRAPICO — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="base.css" />
+  <link rel="stylesheet" href="login.css" />
+</head>
+<body>
+
+<div class="login-page">
+
+  <!-- LEFT PANEL -->
+  <div class="login-left">
+    <div class="login-badge">
+      <span>🚦</span>
+      <span>TTMD · Quezon City</span>
+    </div>
+    <h1 class="login-title">TRAPI<br>CO.</h1>
+    <p class="login-sub">Traffic Complaint Information System for selected barangays of Quezon City. Report, track, and resolve traffic issues in real time.</p>
+    <div class="login-stats">
+      <div>
+        <span class="login-stat-val">4</span>
+        <span class="login-stat-label">Barangays</span>
+      </div>
+      <div>
+        <span class="login-stat-val">8</span>
+        <span class="login-stat-label">Status Stages</span>
+      </div>
+      <div>
+        <span class="login-stat-val">3</span>
+        <span class="login-stat-label">User Roles</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL: LOGIN FORM -->
+  <div class="login-right">
+    <h2>Sign In to TRAPICO</h2>
+    <p>Select your role, then enter your credentials to continue.</p>
+
+    <!-- ROLE SELECTOR -->
+    <div class="role-cards" id="role-cards">
+      <div class="role-card active" data-role="regular" onclick="selectRole(this)">
+        <div class="role-icon">🧑‍💼</div>
+        <div class="role-info">
+          <div class="role-card-name">Civilian User</div>
+          <div class="role-card-label">Regular User</div>
+        </div>
+        <div class="role-check">✓</div>
+      </div>
+      <div class="role-card" data-role="dispatch" onclick="selectRole(this)">
+        <div class="role-icon">📡</div>
+        <div class="role-info">
+          <div class="role-card-name">Dispatch Officer</div>
+          <div class="role-card-label">Admin / Management</div>
+        </div>
+        <div class="role-check"></div>
+      </div>
+      <div class="role-card" data-role="field" onclick="selectRole(this)">
+        <div class="role-icon">🛡️</div>
+        <div class="role-info">
+          <div class="role-card-name">Field Officer</div>
+          <div class="role-card-label">First Responder</div>
+        </div>
+        <div class="role-check"></div>
+      </div>
+    </div>
+
+    <!-- CREDENTIAL FIELDS -->
+    <div class="login-form">
+      <div class="form-group">
+        <label for="login-user">Username</label>
+        <input id="login-user" class="form-input" type="text" placeholder="Enter your username" value="jdoe" autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label for="login-pass">Password</label>
+        <input id="login-pass" class="form-input" type="password" placeholder="Enter your password" value="password" autocomplete="current-password" />
+      </div>
+      <div id="login-error" class="login-error hidden">Username and password are required.</div>
+      <button class="btn-primary" id="login-btn" onclick="doLogin()">Sign In →</button>
+      <div class="login-help">
+        Demo credentials — any username + password will work. Role determines the interface.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal container (shared) -->
+<div id="modal-container"></div>
+
+<script src="shared/data.js"></script>
+<script src="login.js"></script>
+</body>
+</html>

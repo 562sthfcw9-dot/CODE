@@ -1,0 +1,180 @@
+/* ============================================================
+   TRAPICO — Field Officer Styles
+   Mobile-first optimized for first responders
+   ============================================================ */
+
+/* ── ACTIVE JOB CARD ───────────────────────────────────────── */
+.active-job-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--amber);
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.job-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.job-id-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.job-meta {
+  font-size: 13px;
+  color: var(--mist);
+}
+
+/* ── EVIDENCE UPLOAD GRID ──────────────────────────────────── */
+.evidence-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.evidence-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--steel);
+  display: block;
+  margin-bottom: 8px;
+}
+
+/* ── ASSIGNED CASE CARD ────────────────────────────────────── */
+.assigned-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+.assigned-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+.assigned-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.assigned-card-name { font-size: 13px; font-weight: 600; }
+
+.assigned-card-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.assigned-meta-row {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  padding-bottom: 4px;
+}
+.assigned-meta-label { color: var(--mist); width: 80px; flex-shrink: 0; }
+.assigned-meta-val   { font-weight: 600; font-family: var(--font-mono); }
+
+/* ── PERFORMANCE LAYOUT ────────────────────────────────────── */
+.perf-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+/* ── METRICS LIST ──────────────────────────────────────────── */
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--surface);
+  font-size: 14px;
+}
+.metric-row:last-child { border-bottom: none; }
+.metric-label { color: var(--mist); }
+.metric-val   { font-family: var(--font-mono); font-weight: 700; }
+
+/* ── RATING CARD ───────────────────────────────────────────── */
+.rating-card {
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+.rating-card:last-child { margin-bottom: 0; }
+.rating-stars  { font-size: 16px; margin-bottom: 6px; }
+.rating-filled { color: var(--amber); }
+.rating-empty  { color: var(--border); }
+.rating-quote  { font-size: 13px; color: var(--steel); line-height: 1.5; }
+.rating-meta   { font-family: var(--font-mono); font-size: 11px; color: var(--mist); margin-top: 6px; }
+
+/* ── MOBILE-FIRST OPTIMIZATIONS ────────────────────────────── */
+
+/* Field officers primarily use mobile — increase tap targets */
+@media (max-width: 768px) {
+  .btn-primary, .btn-secondary, .btn-danger, .btn-success {
+    padding: 14px 20px !important;
+    font-size: 15px !important;
+    width: 100%;
+    text-align: center;
+  }
+
+  .btn-row { flex-direction: column; }
+
+  .checkin-panel .btn-danger,
+  .checkin-panel .btn-success { width: auto; }
+
+  .evidence-grid   { grid-template-columns: 1fr; }
+  .perf-grid       { grid-template-columns: 1fr; }
+  .assigned-card-body { grid-template-columns: 1fr; }
+
+  .active-job-card { padding: 16px; }
+
+  .countdown-val { font-size: 40px; }
+
+  /* Sticky submit button on resolution form */
+  .btn-row .btn-success {
+    position: sticky;
+    bottom: 16px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  }
+}
+
+/* ── COMPACT SIDEBAR (field officer) ───────────────────────── */
+@media (max-width: 900px) {
+  :root { --sidebar-w: 56px; }
+
+  .sidebar-logo,
+  .sidebar-role-badge,
+  .nav-section-label,
+  .srb-name, .srb-label,
+  .nav-item > span:last-child,
+  .nav-badge,
+  .logout-btn > span:last-child {
+    display: none;
+  }
+
+  .nav-item { justify-content: center; padding: 14px 0; }
+  .nav-icon { width: auto; font-size: 18px; }
+
+  .sidebar-footer { display: flex; justify-content: center; }
+  .logout-btn { justify-content: center; }
+}

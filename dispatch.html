@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TRAPICO — Dispatch Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="base.css" />
+  <link rel="stylesheet" href="dispatch.css" />
+</head>
+<body>
+
+<div class="app-shell">
+  
+  <!-- ══════════════════════ SIDEBAR ══════════════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="mark">TRAPICO</div>
+      <div class="sub">Command Center</div>
+    </div>
+    <div class="sidebar-role-badge">
+      <span class="srb-icon">📡</span>
+      <div>
+        <div class="srb-name">Cpt. Maria Reyes</div>
+        <div class="srb-label">Dispatch Officer</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Navigation</div>
+      <div class="nav-item active" id="nav-dash"      onclick="setActivePage('dash')">      <span class="nav-icon">🖥️</span> Command Center      </div>
+      <div class="nav-item"        id="nav-queue"     onclick="setActivePage('queue')">     <span class="nav-icon">📥</span> Complaint Queue    <span class="nav-badge" id="badge-queue">5</span> </div>
+      <div class="nav-item"        id="nav-active"    onclick="setActivePage('active')">    <span class="nav-icon">🔴</span> Active Cases       <span class="nav-badge" id="badge-active">2</span> </div>
+      <div class="nav-item"        id="nav-officers"  onclick="setActivePage('officers')">  <span class="nav-icon">🛡️</span> Field Officers     </div>
+      <div class="nav-item"        id="nav-analytics" onclick="setActivePage('analytics')"> <span class="nav-icon">📊</span> Analytics          </div>
+      <div class="nav-item"        id="nav-profile"   onclick="setActivePage('profile')">   <span class="nav-icon">👤</span> My Profile         </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="logout-btn" onclick="logout()">
+        <span>⬡</span><span>Sign Out</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ══════════════════ MAIN CONTENT ══════════════════════ -->
+  <div class="main-content">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <span id="topbar-title">Command Center</span>
+      <div class="topbar-right">
+        <div class="dispatch-status">
+          <span class="ds-dot"></span>
+          <span class="ds-label">System Online</span>
+        </div>
+        <div class="notif-btn" id="notif-btn" onclick="toggleNotif()">
+          🔔
+          <div class="notif-dot"></div>
+          <div class="notif-panel hidden" id="notif-panel">
+            <div class="notif-head">Notifications</div>
+            <div class="notif-item"><div class="notif-dot-inline"></div><div><div class="notif-msg">3 new complaints submitted — awaiting validation.</div><div class="notif-time">2 min ago</div></div></div>
+            <div class="notif-item"><div class="notif-dot-inline"></div><div><div class="notif-msg">Ofc. Reyes checked in at Commonwealth Ave.</div><div class="notif-time">8 min ago</div></div></div>
+            <div class="notif-item"><div class="notif-dot-inline"></div><div><div class="notif-msg">⚠ TRAPICO-000015: Possible duplicate detected.</div><div class="notif-time">15 min ago</div></div></div>
+            <div class="notif-item"><div class="notif-dot-inline"></div><div><div class="notif-msg">Ofc. Bautista at capacity — reassignment needed.</div><div class="notif-time">30 min ago</div></div></div>
+          </div>
+        </div>
+        <div class="user-chip" style="cursor:pointer" onclick="setActivePage('profile')">
+          <div class="user-avatar">MR</div>
+          <span class="user-chip-name">Cpt. Reyes</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- PAGE BODY -->
+    <main class="page-body">
+
+      <!-- ═══════════════ PAGE: COMMAND CENTER ═══════════ -->
+      <section id="page-dash" class="page-section">
+        <div class="stats-row">
+          <div class="stat-card accent"><div class="stat-card-label">Pending Queue</div><div class="stat-card-val" id="stat-pending">—</div><div class="stat-card-sub">Awaiting validation</div></div>
+          <div class="stat-card accent"><div class="stat-card-label">Duplicate Flags</div><div class="stat-card-val" id="stat-dups">—</div><div class="stat-card-sub">Require review</div></div>
+          <div class="stat-card"><div class="stat-card-label">Active Cases</div><div class="stat-card-val" id="stat-active-count">—</div><div class="stat-card-sub">In field</div></div>
+          <div class="stat-card green"><div class="stat-card-label">Resolution Rate</div><div class="stat-card-val">91%</div><div class="stat-card-sub">This month</div></div>
+        </div>
+
+        <div class="alert alert-warn" id="dup-alert"></div>
+
+        <div class="dash-grid">
+          <!-- Pending queue preview -->
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title">Pending Queue</span>
+              <button class="btn-secondary btn-sm" onclick="setActivePage('queue')">View All</button>
+            </div>
+            <div id="dash-queue-list"></div>
+          </div>
+
+          <!-- Officer status -->
+          <div class="card">
+            <div class="card-head"><span class="card-title">Field Officer Status</span></div>
+            <div id="dash-officer-list"></div>
+          </div>
+        </div>
+
+        <!-- Officer availability map -->
+        <div class="card">
+          <div class="card-head"><span class="card-title">Officer Availability Map</span></div>
+          <div class="map-placeholder" style="height:200px">
+            <div class="map-icon">🗺️</div>
+            <div class="map-label">Live officer positions — Leaflet.js + OpenStreetMap</div>
+            <div class="map-sub">Real-time GPS tracking · 4 officers shown</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ PAGE: COMPLAINT QUEUE ══════════ -->
+      <section id="page-queue" class="page-section hidden">
+        <div class="queue-filters">
+          <input class="form-input" style="max-width:280px" id="queue-search"    placeholder="Search by ID, category…"   oninput="renderQueueTable()" />
+          <select class="form-select" style="width:auto"   id="queue-priority"   onchange="renderQueueTable()">
+            <option value="">All Priorities</option>
+            <option value="urgent">Urgent</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <select class="form-select" style="width:auto"   id="queue-brgy"       onchange="renderQueueTable()">
+            <option value="">All Barangays</option>
+            <option>Commonwealth</option><option>Batasan Hills</option>
+            <option>Central</option><option>Sto. Cristo</option>
+          </select>
+        </div>
+
+        <div class="tabs" id="queue-tabs">
+          <div class="tab active" data-tab="submitted" onclick="switchQueueTab(this)">Submitted <span id="tab-submitted-count"></span></div>
+          <div class="tab"        data-tab="verified"  onclick="switchQueueTab(this)">Verified — Unassigned <span id="tab-verified-count"></span></div>
+          <div class="tab"        data-tab="assigned"  onclick="switchQueueTab(this)">Assigned <span id="tab-assigned-count"></span></div>
+        </div>
+
+        <div class="card" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>ID</th><th>Category</th><th>Reporter</th><th>Barangay</th><th>Priority</th><th>Date</th><th>Flags</th><th>Action</th></tr>
+              </thead>
+              <tbody id="queue-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ PAGE: ACTIVE CASES ═════════════ -->
+      <section id="page-active" class="page-section hidden">
+        <div id="active-cases-list"></div>
+      </section>
+
+      <!-- ═══════════════ PAGE: FIELD OFFICERS ═══════════ -->
+      <section id="page-officers" class="page-section hidden">
+        <div class="officer-grid" id="officers-grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))"></div>
+      </section>
+
+      <!-- ═══════════════ PAGE: ANALYTICS ════════════════ -->
+      <section id="page-analytics" class="page-section hidden">
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-card-label">Total This Month</div><div class="stat-card-val">47</div></div>
+          <div class="stat-card green"><div class="stat-card-label">Resolution Rate</div><div class="stat-card-val">91%</div></div>
+          <div class="stat-card blue"><div class="stat-card-label">Avg. Resolution</div><div class="stat-card-val">1.8<span class="unit">hr</span></div></div>
+          <div class="stat-card accent"><div class="stat-card-label">Rejected</div><div class="stat-card-val">4</div></div>
+        </div>
+
+        <div class="analytics-grid">
+          <div class="card">
+            <div class="card-head"><span class="card-title">Complaints by Category</span></div>
+            <div id="cat-bars"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="card-title">Officer Performance</span></div>
+            <div id="officer-perf-list"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><span class="card-title">Resolution Time Trend — Last 4 Weeks</span></div>
+          <div class="bar-chart" id="trend-chart"></div>
+          <div class="chart-weeks"><span>Week 1</span><span>Week 2</span><span>Week 3</span><span>Week 4 ←</span></div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ PAGE: DISPATCH PROFILE ═══════════ -->
+      <section id="page-profile" class="page-section hidden">
+        <div class="card" style="max-width:600px">
+          <div class="card-head"><span class="card-title">My Profile</span></div>
+          <div style="padding: 20px;">
+            <div class="detail-item"><label>Name</label><span id="prof-name">—</span></div>
+            <div class="detail-item"><label>Position</label><span id="prof-position">—</span></div>
+            <div class="detail-item"><label>Email</label><span id="prof-email">—</span></div>
+            <div class="detail-item"><label>Phone</label><span id="prof-phone">—</span></div>
+            <div class="detail-item"><label>Badge ID</label><span id="prof-badgeid">—</span></div>
+            <div class="detail-item"><label>Barangay Assignment</label><span id="prof-brgy">—</span></div>
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
+              <div class="section-title">Statistics This Month</div>
+              <div class="detail-item"><label>Cases Processed</label><span id="prof-cases">0</span></div>
+              <div class="detail-item"><label>Cases Closed</label><span id="prof-closed">0</span></div>
+              <div class="detail-item"><label>Avg. Resolution Time</label><span id="prof-avgtime">—</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- MODALS -->
+<!-- Review/Assign Modal -->
+<div id="modal-container"></div>
+
+<!-- Live Officer Map -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<script src="data.js"></script>
+<script src="dispatch.js"></script>
+</body>
+</html>

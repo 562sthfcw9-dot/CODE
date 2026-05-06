@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TRAPICO — Field Officer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="base.css" />
+  <link rel="stylesheet" href="field.css" />
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ══════════════════════ SIDEBAR ══════════════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="mark">TRAPICO</div>
+      <div class="sub">Field Operations</div>
+    </div>
+    <div class="sidebar-role-badge">
+      <span class="srb-icon">🛡️</span>
+      <div>
+        <div class="srb-name">Ofc. Ramon Reyes</div>
+        <div class="srb-label">Field Officer</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Navigation</div>
+      <div class="nav-item active" id="nav-dash"        onclick="setActivePage('dash')">        <span class="nav-icon">🏠</span> My Dashboard     </div>
+      <div class="nav-item"        id="nav-assigned"    onclick="setActivePage('assigned')">    <span class="nav-icon">📋</span> Assigned Cases  <span class="nav-badge" id="badge-assigned">3</span> </div>
+      <div class="nav-item"        id="nav-job"         onclick="setActivePage('job')">         <span class="nav-icon">🔴</span> Active Job       </div>
+      <div class="nav-item"        id="nav-history"     onclick="setActivePage('history')">     <span class="nav-icon">📁</span> Case History     </div>
+      <div class="nav-item"        id="nav-performance" onclick="setActivePage('performance')"> <span class="nav-icon">📊</span> My Performance   </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="logout-btn" onclick="logout()">
+        <span>⬡</span><span>Sign Out</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ══════════════════ MAIN CONTENT ══════════════════════ -->
+  <div class="main-content">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <span id="topbar-title">My Dashboard</span>
+      <div class="topbar-right">
+        <div class="notif-btn" id="notif-btn" onclick="toggleNotif()">
+          🔔
+          <div class="notif-dot"></div>
+          <div class="notif-panel hidden" id="notif-panel">
+            <div class="notif-head">Notifications</div>
+            <div class="notif-item"><div class="notif-dot-inline"></div><div><div class="notif-msg">New assignment: Road Damage, Central.</div><div class="notif-time">5 min ago</div></div></div>
+            <div class="notif-item"><div class="notif-dot-inline"></div><div><div class="notif-msg">30-min arrival window started. Depart now.</div><div class="notif-time">11 min ago</div></div></div>
+            <div class="notif-item"><div class="notif-dot-inline"></div><div><div class="notif-msg">Resolution for #000012 approved by Dispatch.</div><div class="notif-time">1 hr ago</div></div></div>
+          </div>
+        </div>
+        <div class="user-chip">
+          <div class="user-avatar">RR</div>
+          <span class="user-chip-name">Ofc. Reyes</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- PAGE BODY -->
+    <main class="page-body">
+
+      <!-- ═══════════════ PAGE: DASHBOARD ═══════════════ -->
+      <section id="page-dash" class="page-section">
+        <div class="stats-row">
+          <div class="stat-card accent"><div class="stat-card-label">Assigned to Me</div><div class="stat-card-val" id="stat-assigned">3</div><div class="stat-card-sub">Pending action</div></div>
+          <div class="stat-card"><div class="stat-card-label">In Progress</div><div class="stat-card-val" id="stat-inprog">1</div><div class="stat-card-sub">Currently on-site</div></div>
+          <div class="stat-card green"><div class="stat-card-label">Resolved Today</div><div class="stat-card-val">4</div><div class="stat-card-sub">This shift</div></div>
+          <div class="stat-card blue"><div class="stat-card-label">Efficiency</div><div class="stat-card-val">92<span class="unit">%</span></div><div class="stat-card-sub">This month</div></div>
+        </div>
+
+        <div class="alert alert-warn" id="dash-urgent-alert">
+          ⏱ <div>You have an active assignment with <strong id="dash-countdown">18:42</strong> remaining on the 30-minute window.
+          <a href="#" onclick="setActivePage('job');return false" style="color:var(--ink);font-weight:700;text-decoration:underline">Go to Active Job →</a></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">My Assigned Cases</span>
+            <span class="section-sub">Priority Order</span>
+          </div>
+          <div id="dash-task-list"></div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ PAGE: ASSIGNED CASES ═══════════ -->
+      <section id="page-assigned" class="page-section hidden">
+        <div id="assigned-list"></div>
+      </section>
+
+      <!-- ═══════════════ PAGE: ACTIVE JOB ═══════════════ -->
+      <section id="page-job" class="page-section hidden">
+
+        <div class="active-job-card">
+          <!-- Case header -->
+          <div class="job-header">
+            <div>
+              <div class="job-id-row">
+                <span class="track-id">TRAPICO-2026-03-000014</span>
+                <span class="badge badge-progress">In Progress</span>
+                <span class="badge badge-medium"><span class="priority-dot dot-medium"></span>Medium</span>
+              </div>
+              <div class="job-meta">Road Damage · Barangay Central · 2026-03-24 09:30</div>
+            </div>
+          </div>
+
+          <!-- Countdown -->
+          <div class="countdown-box">
+            <div>
+              <div class="countdown-val" id="job-countdown">18:42</div>
+              <div class="countdown-label">Time remaining in arrival window</div>
+            </div>
+            <div class="countdown-meta">
+              Submitted: 2026-03-24 09:30<br>
+              Assigned:  2026-03-24 11:02
+            </div>
+          </div>
+
+          <div id="job-fta-alert" class="alert alert-danger hidden">
+            🚨 <div>You are approaching the 30-minute arrival deadline. Failure to check in will trigger an automated <strong>Failure-to-Arrive</strong> alert to Dispatch.</div>
+          </div>
+
+          <!-- Map -->
+          <div class="map-placeholder" style="height:220px;margin-bottom:20px">
+            <div class="map-icon">🗺️</div>
+            <div class="map-label">Navigate to site · Timog Ave., Central QC</div>
+            <div class="map-sub">14.6390, 121.0100 · Tap to open in Google Maps</div>
+          </div>
+
+          <!-- GPS Check-in -->
+          <div class="checkin-panel">
+            <div class="checkin-title">GPS Geofence Check-In</div>
+            <div class="checkin-sub">You must be within 150m of the incident site to check in. The system verifies your GPS coordinates.</div>
+            <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+              <button class="btn-danger" id="btn-checkin"  onclick="attemptCheckin()">📍 Check In (GPS)</button>
+              <button class="btn-success" id="btn-simulate" onclick="simulateArrival()">🧪 Simulate Arrival</button>
+            </div>
+            <div class="checkin-status" id="checkin-status"></div>
+          </div>
+
+          <!-- Resolution Form -->
+          <div id="resolution-form">
+            <div class="section-title" style="margin-bottom:16px">Resolution Report</div>
+
+            <!-- Before / After uploads -->
+            <div class="evidence-grid">
+              <div>
+                <label class="evidence-label">Before — Incident Evidence</label>
+                <div class="upload-box" style="height:110px">
+                  <div class="upload-icon">📸</div>
+                  <div class="upload-text" style="font-size:12px">Upload BEFORE photo/video</div>
+                </div>
+              </div>
+              <div>
+                <label class="evidence-label">After — Proof of Resolution</label>
+                <div class="upload-box" style="height:110px">
+                  <div class="upload-icon">✅</div>
+                  <div class="upload-text" style="font-size:12px">Upload AFTER photo/video</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="res-method">Resolution Method *</label>
+                <select id="res-method" class="form-select">
+                  <option value="">— Select method —</option>
+                  <option>Traffic re-routing</option>
+                  <option>Obstruction removal</option>
+                  <option>Road barricading</option>
+                  <option>DPWH referral</option>
+                  <option>On-site enforcement</option>
+                  <option>Emergency repair coordination</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="res-equipment">Equipment Used</label>
+                <input id="res-equipment" class="form-input" placeholder="e.g. Traffic cones, flares…" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="res-desc">Resolution Description *</label>
+              <textarea id="res-desc" class="form-input" rows="4" placeholder="Describe the actions taken to resolve the incident…"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="res-followup">Follow-Up Recommendations</label>
+              <textarea id="res-followup" class="form-input" rows="2" placeholder="Any recommendations for DPWH, LTO, or further action…"></textarea>
+            </div>
+
+            <div class="btn-row">
+              <button class="btn-secondary" onclick="saveDraft()">Save Draft</button>
+              <button class="btn-success" onclick="submitResolution()">Submit Resolution Report ✓</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ PAGE: CASE HISTORY ══════════════ -->
+      <section id="page-history" class="page-section hidden">
+        <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+          <input class="form-input" style="max-width:280px" id="history-search" placeholder="Search case history…" oninput="renderHistory()" />
+          <select class="form-select" style="width:auto" id="history-period" onchange="renderHistory()">
+            <option value="">All Time</option>
+            <option value="month">This Month</option>
+          </select>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Tracking ID</th><th>Category</th><th>Barangay</th><th>Priority</th><th>Status</th><th>Date</th><th>Rating</th></tr>
+              </thead>
+              <tbody id="history-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ PAGE: MY PERFORMANCE ════════════ -->
+      <section id="page-performance" class="page-section hidden">
+        <div class="stats-row">
+          <div class="stat-card green"><div class="stat-card-label">Efficiency Score</div><div class="stat-card-val">92%</div><div class="stat-card-sub">This month</div></div>
+          <div class="stat-card"><div class="stat-card-label">Total Resolved</div><div class="stat-card-val">38</div><div class="stat-card-sub">All time</div></div>
+          <div class="stat-card blue"><div class="stat-card-label">On-Time Arrival</div><div class="stat-card-val">94%</div></div>
+          <div class="stat-card amber"><div class="stat-card-label">Avg. Satisfaction</div><div class="stat-card-val">4.3<span class="unit">/5</span></div></div>
+        </div>
+
+        <div class="perf-grid">
+          <!-- Metrics table -->
+          <div class="card">
+            <div class="card-head"><span class="card-title">Performance Metrics</span></div>
+            <div id="perf-metrics-list"></div>
+          </div>
+          <!-- KPI bars -->
+          <div class="card">
+            <div class="card-head"><span class="card-title">KPI Breakdown</span></div>
+            <div id="perf-kpi-bars"></div>
+          </div>
+        </div>
+
+        <!-- Satisfaction ratings -->
+        <div class="card">
+          <div class="card-head"><span class="card-title">Recent User Ratings</span></div>
+          <div id="perf-ratings"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- Modal container -->
+<div id="modal-container"></div>
+
+<script src="data.js"></script>
+<script src="field.js"></script>
+</body>
+</html>

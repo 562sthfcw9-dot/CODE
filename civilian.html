@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TRAPICO — Civilian Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="base.css" />
+  <link rel="stylesheet" href="civilian.css" />
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ══════════════════════ SIDEBAR ══════════════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="mark">TRAPICO</div>
+      <div class="sub">Traffic Complaint System</div>
+    </div>
+    <div class="sidebar-role-badge">
+      <span class="srb-icon">🧑‍💼</span>
+      <div>
+        <div class="srb-name" id="sb-name">Juan D. Oe</div>
+        <div class="srb-label">Civilian User</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Navigation</div>
+      <div class="nav-item active" id="nav-dash"        onclick="setActivePage('dash')">        <span class="nav-icon">🏠</span> Dashboard           </div>
+      <div class="nav-item"        id="nav-report"      onclick="setActivePage('report')">      <span class="nav-icon">📝</span> File a Complaint    </div>
+      <div class="nav-item"        id="nav-complaints"  onclick="setActivePage('complaints')">  <span class="nav-icon">📋</span> My Complaints       <span class="nav-badge" id="badge-complaints">3</span> </div>
+      <div class="nav-item"        id="nav-profile"     onclick="setActivePage('profile')">     <span class="nav-icon">👤</span> My Profile          </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="logout-btn" onclick="logout()">
+        <span>⬡</span><span>Sign Out</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ══════════════════ MAIN CONTENT ══════════════════════ -->
+  <div class="main-content">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <span id="topbar-title">Dashboard</span>
+      <div class="topbar-right">
+        <div class="notif-btn" id="notif-btn" onclick="toggleNotif()">
+          🔔
+          <div class="notif-dot"></div>
+          <div class="notif-panel hidden" id="notif-panel">
+            <div class="notif-head">Notifications</div>
+            <div class="notif-item"><div class="notif-dot-inline"></div><div><div class="notif-msg">Complaint #000012 has been resolved.</div><div class="notif-time">5 min ago</div></div></div>
+            <div class="notif-item"><div class="notif-dot-inline"></div><div><div class="notif-msg">Complaint #000016 received. Under review.</div><div class="notif-time">18 min ago</div></div></div>
+            <div class="notif-item"><div class="notif-dot-inline"></div><div><div class="notif-msg">System maintenance: Mar 26, 2AM–4AM.</div><div class="notif-time">2 hrs ago</div></div></div>
+          </div>
+        </div>
+        <div class="user-chip">
+          <div class="user-avatar" id="topbar-avatar">JD</div>
+          <span class="user-chip-name" id="topbar-username">Juan D. Oe</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- PAGE BODY -->
+    <main class="page-body">
+
+      <!-- ═══════════════ PAGE: DASHBOARD ═══════════════ -->
+      <section id="page-dash" class="page-section">
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-card-label">Total Filed</div><div class="stat-card-val" id="stat-total">—</div><div class="stat-card-sub">All time complaints</div></div>
+          <div class="stat-card accent"><div class="stat-card-label">Active</div><div class="stat-card-val" id="stat-active">—</div><div class="stat-card-sub">Pending resolution</div></div>
+          <div class="stat-card green"><div class="stat-card-label">Resolved</div><div class="stat-card-val" id="stat-resolved">—</div><div class="stat-card-sub">Successfully closed</div></div>
+          <div class="stat-card"><div class="stat-card-label">Avg. Response</div><div class="stat-card-val">24<span class="unit">min</span></div><div class="stat-card-sub">System average</div></div>
+        </div>
+
+        <div class="alert alert-info">📍 <div>You are registered under <strong>Barangay Commonwealth, Quezon City</strong>. You may file complaints for any of the 4 covered barangays.</div></div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Recent Complaints</span>
+            <button class="btn-secondary btn-sm" onclick="setActivePage('report')">+ File New</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Tracking ID</th><th>Category</th><th>Priority</th><th>Status</th><th>Submitted</th><th>Action</th></tr>
+              </thead>
+              <tbody id="dash-recent-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><span class="card-title">System Coverage — Active Barangays</span></div>
+          <div class="brgy-grid" id="brgy-grid"></div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ PAGE: FILE COMPLAINT ═══════════ -->
+      <section id="page-report" class="page-section hidden">
+
+        <div class="alert alert-info">🗺️ <div>You have <strong>30 minutes</strong> from submission to edit or cancel your complaint. After Dispatch validation, changes are locked.</div></div>
+
+        <!-- STEPPER -->
+        <div class="stepper" id="stepper">
+          <div class="step active" id="step-1"><div class="step-num">1</div><span class="step-label">Location</span></div>
+          <div class="step-line"></div>
+          <div class="step" id="step-2"><div class="step-num">2</div><span class="step-label">Details</span></div>
+          <div class="step-line"></div>
+          <div class="step" id="step-3"><div class="step-num">3</div><span class="step-label">Evidence</span></div>
+        </div>
+
+        <!-- STEP 1: LOCATION & CATEGORY -->
+        <div class="card" id="form-step-1">
+          <div class="card-head"><span class="card-title">Category &amp; Location</span></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="f-cat">Complaint Category *</label>
+              <select id="f-cat" class="form-select">
+                <option value="">— Select category —</option>
+                <option>Illegal Parking</option>
+                <option>Traffic Obstruction</option>
+                <option>Road Damage</option>
+                <option>Accident</option>
+                <option>Signal Malfunction</option>
+                <option>Traffic Violation</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="f-brgy">Barangay *</label>
+              <select id="f-brgy" class="form-select">
+                <option>Commonwealth</option>
+                <option>Batasan Hills</option>
+                <option>Central</option>
+                <option>Sto. Cristo</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Pin Incident Location on Map *</label>
+            <div class="map-placeholder" style="height:220px;margin-top:6px">
+              <div class="map-icon">📍</div>
+              <div class="map-label">Click to pin location — Leaflet.js + OpenStreetMap</div>
+              <div class="map-sub">Nominatim geocoding · GPS auto-detect available</div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:8px">
+              <button class="btn-secondary btn-sm">📍 Use My GPS Location</button>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="setActivePage('dash')">Cancel</button>
+            <button class="btn-primary" style="padding:10px 24px;font-size:15px" onclick="goToStep(2)">Next →</button>
+          </div>
+        </div>
+
+        <!-- STEP 2: INCIDENT DETAILS -->
+        <div class="card hidden" id="form-step-2">
+          <div class="card-head"><span class="card-title">Incident Details</span></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="f-date">Date of Incident *</label>
+              <input id="f-date" class="form-input" type="date" value="2026-03-24" />
+            </div>
+            <div class="form-group">
+              <label for="f-time">Time of Incident *</label>
+              <input id="f-time" class="form-input" type="time" value="10:30" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Priority Level</label>
+            <div class="priority-pills" style="margin-top:6px">
+              <div class="priority-pill" data-p="low"    onclick="selectPriority(this)">Low</div>
+              <div class="priority-pill sel" data-p="medium" onclick="selectPriority(this)">Medium</div>
+              <div class="priority-pill" data-p="high"   onclick="selectPriority(this)">High</div>
+              <div class="priority-pill" data-p="urgent" onclick="selectPriority(this)">Urgent</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="f-desc">Incident Description * <span style="font-weight:400">(min. 50 characters)</span></label>
+            <textarea id="f-desc" class="form-input" rows="5" placeholder="Describe the traffic incident in detail. Include what you observed, how it affects traffic flow, and any other relevant information…" oninput="updateCharCount(this)"></textarea>
+            <div class="char-count" id="char-count">0 / 50 min</div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="goToStep(1)">← Back</button>
+            <button class="btn-primary" style="padding:10px 24px;font-size:15px" onclick="goToStep(3)">Next →</button>
+          </div>
+        </div>
+
+        <!-- STEP 3: EVIDENCE & SUBMIT -->
+        <div class="card hidden" id="form-step-3">
+          <div class="card-head"><span class="card-title">Evidence &amp; Submit</span></div>
+          <div class="form-group">
+            <label>Upload Evidence (Photo / Video)</label>
+            <div class="upload-box" style="margin-top:6px">
+              <div class="upload-icon">📎</div>
+              <div class="upload-text">Drag &amp; drop or click to upload</div>
+              <div class="upload-sub">JPG, PNG, MP4 · Max 50MB · Stored via Cloudinary</div>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:20px">
+            <label style="margin-bottom:10px">Reporting Options</label>
+            <div class="toggle-row">
+              <label class="toggle-switch">
+                <input type="checkbox" id="anon-toggle" onchange="toggleAnonWarning(this)" />
+                <span class="toggle-slider"></span>
+              </label>
+              <span style="font-size:14px;font-weight:500">Submit anonymously — your name will appear as "Anonymous"</span>
+            </div>
+          </div>
+          <div class="alert alert-warn hidden" id="anon-warning">🔒 <div>Your identity will be hidden from field officers. Dispatch can still verify your account for quality control.</div></div>
+
+          <div class="review-summary" id="review-summary"></div>
+
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="goToStep(2)">← Back</button>
+            <button class="btn-primary" onclick="submitComplaint()">Submit Complaint →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ PAGE: MY COMPLAINTS ════════════ -->
+      <section id="page-complaints" class="page-section hidden">
+        <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+          <input class="form-input" style="max-width:280px" id="complaints-search" placeholder="Search by ID or category…" oninput="renderComplaintsTable()" />
+          <select class="form-select" style="width:auto" id="complaints-filter" onchange="renderComplaintsTable()">
+            <option value="">All Statuses</option>
+            <option value="submitted">Submitted</option>
+            <option value="verified">Verified</option>
+            <option value="assigned">Assigned</option>
+            <option value="in_progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Tracking ID</th><th>Category</th><th>Barangay</th><th>Priority</th><th>Status</th><th>Date Filed</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="complaints-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ PAGE: MY PROFILE ═══════════════ -->
+      <section id="page-profile" class="page-section hidden">
+        <div class="profile-grid">
+
+          <!-- Personal Info -->
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title">Personal Information</span>
+              <button class="btn-secondary btn-sm" id="edit-btn" onclick="toggleProfileEdit()">✎ Edit</button>
+            </div>
+            <div id="profile-view">
+              <div class="detail-grid">
+                <div class="detail-item"><label>Full Name</label><span>Juan D. Oe</span></div>
+                <div class="detail-item"><label>Username</label><span>jdoe</span></div>
+                <div class="detail-item"><label>Email</label><span>jdoe@gmail.com</span></div>
+                <div class="detail-item"><label>Phone</label><span>+63 912 345 6789</span></div>
+                <div class="detail-item"><label>Barangay</label><span>Commonwealth</span></div>
+                <div class="detail-item"><label>City</label><span>Quezon City</span></div>
+              </div>
+            </div>
+            <div id="profile-edit" class="hidden">
+              <div class="form-row">
+                <div class="form-group"><label>Full Name</label><input class="form-input" value="Juan D. Oe" /></div>
+                <div class="form-group"><label>Username</label><input class="form-input" value="jdoe" /></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label>Email</label><input class="form-input" type="email" value="jdoe@gmail.com" /></div>
+                <div class="form-group"><label>Phone</label><input class="form-input" value="+63 912 345 6789" /></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Barangay</label>
+                  <select class="form-select">
+                    <option selected>Commonwealth</option>
+                    <option>Batasan Hills</option><option>Central</option><option>Sto. Cristo</option>
+                  </select>
+                </div>
+                <div class="form-group"><label>City</label><input class="form-input" value="Quezon City" /></div>
+              </div>
+              <div class="btn-row">
+                <button class="btn-secondary" onclick="toggleProfileEdit()">Cancel</button>
+                <button class="btn-primary" style="padding:10px 24px;font-size:15px" onclick="saveProfile()">Save Changes</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Security -->
+          <div class="card">
+            <div class="card-head"><span class="card-title">Security — Change Password</span></div>
+            <div class="form-group"><label for="pw-current">Current Password</label><input id="pw-current" class="form-input" type="password" placeholder="Enter current password" /></div>
+            <div class="form-group"><label for="pw-new">New Password</label><input id="pw-new" class="form-input" type="password" placeholder="Min. 8 characters" /></div>
+            <div class="form-group"><label for="pw-confirm">Confirm New Password</label><input id="pw-confirm" class="form-input" type="password" placeholder="Repeat new password" /></div>
+            <div class="alert alert-warn">🔐 <div>Must be at least 8 characters, one uppercase letter, and one number.</div></div>
+            <button class="btn-primary" style="width:100%;margin-top:8px" onclick="updatePassword()">Update Password</button>
+          </div>
+
+        </div>
+      </section>
+
+    </main><!-- /page-body -->
+  </div><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<!-- Modal container -->
+<div id="modal-container"></div>
+
+<script src="data.js"></script>
+<script src="civilian.js"></script>
+</body>
+</html>

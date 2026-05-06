@@ -1,0 +1,213 @@
+/* ============================================================
+   TRAPICO — Dispatch Officer Styles
+   Role-specific components for the command center
+   ============================================================ */
+
+/* ── DISPATCH STATUS INDICATOR ─────────────────────────────── */
+.dispatch-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--green);
+  background: rgba(42,157,92,0.08);
+  border: 1px solid rgba(42,157,92,0.2);
+  padding: 4px 12px;
+}
+
+.ds-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+/* ── COMMAND CENTER GRID ───────────────────────────────────── */
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+/* ── PENDING QUEUE ITEM (dashboard preview) ────────────────── */
+.queue-preview-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--surface);
+}
+.queue-preview-item:last-child { border-bottom: none; }
+
+.queue-preview-body { flex: 1; min-width: 0; }
+.queue-preview-id   { font-family: var(--font-mono); font-size: 12px; font-weight: 500; }
+.queue-preview-meta { font-size: 12px; color: var(--mist); margin-top: 2px; }
+
+/* ── OFFICER STATUS ITEM (dashboard list) ──────────────────── */
+.officer-status-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.officer-status-item:last-child { margin-bottom: 0; }
+
+.officer-initials {
+  width: 36px; height: 36px;
+  background: var(--ink);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--white);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* ── QUEUE FILTERS ─────────────────────────────────────────── */
+.queue-filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+/* ── ACTIVE CASE CARD ──────────────────────────────────────── */
+.active-case-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--amber);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+.active-case-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.active-case-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.active-case-meta { font-size: 13px; color: var(--mist); }
+
+.active-case-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.active-case-desc-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--mist);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+.active-case-desc { font-size: 13px; line-height: 1.6; }
+
+.active-case-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.officer-assigned-label { font-size: 12px; color: var(--mist); }
+.officer-assigned-name  { font-size: 13px; font-weight: 600; }
+.officer-en-route {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--green);
+}
+
+/* ── COUNTDOWN TIMER BADGE (in table) ──────────────────────── */
+.timer-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--amber);
+  padding: 2px 8px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.timer-badge.urgent { background: #FEE2E2; color: var(--accent); }
+
+/* ── OFFICER CARD (Full view) ──────────────────────────────── */
+.officer-full-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  padding: 20px 24px;
+}
+.officer-full-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.officer-avatar-lg {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: var(--ink);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--white);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.officer-full-name  { font-family: var(--font-head); font-size: 17px; font-weight: 700; }
+.officer-full-brgy  { font-family: var(--font-mono); font-size: 11px; color: var(--mist); margin-top: 2px; }
+
+.officer-stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.officer-stat-box {
+  text-align: center;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.officer-stat-val   { font-family: var(--font-head); font-size: 18px; font-weight: 800; }
+.officer-stat-label { font-family: var(--font-mono); font-size: 10px; color: var(--mist); margin-top: 2px; }
+
+/* ── ANALYTICS GRID ────────────────────────────────────────── */
+.analytics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+/* ── REJECT REASON FIELD ───────────────────────────────────── */
+.reject-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── RESPONSIVE ────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .dash-grid       { grid-template-columns: 1fr; }
+  .analytics-grid  { grid-template-columns: 1fr; }
+  .active-case-body { grid-template-columns: 1fr; }
+}
