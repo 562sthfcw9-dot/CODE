@@ -42,9 +42,9 @@ function toggleNotif() {
 }
 
 document.addEventListener('click', e => {
-    if (!e.target.closest('#notif-btn') && notifOpen) {
+    if (!e.target.closest('#notif-btn') && civilianNotifOpen) {
         document.getElementById('notif-panel').classList.add('hidden');
-        notifOpen = false;
+        civilianNotifOpen = false;
     }
 });
 

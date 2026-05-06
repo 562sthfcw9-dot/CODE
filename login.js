@@ -36,9 +36,9 @@ async function doLogin() {
     }, 'POST');
 
     const routes = {
-      regular: 'civilian.html',
-      dispatch: 'dispatch.html',
-      field: 'field.html',
+      regular: 'CITIZEN/civilian.html',
+      dispatch: 'DISPATCH/dispatch.html',
+      field: 'FIELD/field.html',
     };
 
     window.location.href = response.redirect || routes[selectedRole] || 'index.html';

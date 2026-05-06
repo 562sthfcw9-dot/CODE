@@ -2,10 +2,24 @@
 declare(strict_types=1);
 
 // Update these values for your InfinityFree or local MySQL database.
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'trapico');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+// Auto-switch DB config: localhost uses local MySQL, live host uses InfinityFree.
+$httpHost = (string)($_SERVER['HTTP_HOST'] ?? '');
+$serverName = (string)($_SERVER['SERVER_NAME'] ?? '');
+$hostOnly = strtolower((string)preg_replace('/:\\d+$/', '', $httpHost));
+$isLocalHost = in_array($hostOnly, ['localhost', '127.0.0.1'], true)
+    || in_array(strtolower($serverName), ['localhost', '127.0.0.1'], true);
+
+if ($isLocalHost) {
+    define('DB_HOST', '127.0.0.1');
+    define('DB_NAME', 'trapico');
+    define('DB_USER', 'root');
+    define('DB_PASS', '');
+} else {
+    define('DB_HOST', 'sql110.infinityfree.com');
+    define('DB_NAME', 'if0_41845667_trapico');
+    define('DB_USER', 'if0_41845667');
+    define('DB_PASS', 'Trapico26');
+}
 
 define('UPLOAD_PATH', __DIR__ . '/../uploads');
 define('UPLOAD_URL', '/uploads');
@@ -38,7 +52,8 @@ function verifyPassword(string $password, string $storedHash): bool
         return false;
     }
 
-    if (password_get_info($storedHash)['algo'] !== 0) {
+    $info = password_get_info($storedHash);
+    if (is_int($info['algo']) && $info['algo'] > 0) {
         return password_verify($password, $storedHash);
     }
 
