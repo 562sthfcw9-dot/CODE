@@ -1,7 +1,4 @@
--- 1. CLEAN SLATE
-DROP DATABASE IF EXISTS trapico;
-CREATE DATABASE trapico;
-USE trapico;
+
 
 -- 2. CITIZEN_ACCOUNTS (Civilian User Role)
 -- Explicit name to distinguish from Officers/Dispatchers
