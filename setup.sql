@@ -303,9 +303,8 @@ CREATE TABLE performance_metrics_cache (
 -- Citizen Accounts
 INSERT INTO citizen_accounts (username, password_hash, first_name, last_name, email, phone_number, home_barangay, account_status) 
 VALUES 
-('jdoe', 'Password123', 'Juan', 'Dela Cruz', 'jdoe@gmail.com', '+639123456789', 'Commonwealth', 'active'),
-('msmith', 'SecurePass456', 'Maria', 'Santos', 'maria.santos@gmail.com', '+639987654321', 'BGC', 'active'),
-('rjones', 'Pass789', 'Robert', 'Jones', 'robert.j@gmail.com', '+639111222333', 'Makati', 'active');
+('rikka', 'Password123', 'Rikka', 'Test', 'rikka@gmail.com', '+639123456789', 'Commonwealth', 'active'),
+('rosette', 'Password123', 'Rosette', 'Test', 'rosette@gmail.com', '+639987654321', 'Batasan Hills', 'active');
 
 -- Admin/Dispatch Accounts
 INSERT INTO dispatch_admin_accounts (admin_full_name, admin_email, admin_password, admin_role, account_status)
