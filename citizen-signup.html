@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TRAPICO — Create Account</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="base.css" />
+  <link rel="stylesheet" href="login.css" />
+  <link rel="stylesheet" href="signup.css" />
+</head>
+<body data-role="regular">
+
+<div class="login-page su-page">
+
+  <!-- ── LEFT PANEL (identical to login) ── -->
+  <section class="login-left" aria-label="TRAPICO overview">
+    <div class="login-left-inner">
+      <div class="login-badge">TTMD • QUEZON CITY</div>
+      <h1 class="login-title">TRAPICO.</h1>
+      <p class="login-sub">Traffic Complaint Information System for selected barangays of Quezon City. Report, track, and resolve traffic issues in real time.</p>
+      <div class="login-stats" aria-label="System highlights">
+        <div class="login-stat-block">
+          <span class="login-stat-val">4</span>
+          <span class="login-stat-label">BARANGAYS</span>
+        </div>
+        <div class="login-stat-block">
+          <span class="login-stat-val">30m</span>
+          <span class="login-stat-label">RESPONSE</span>
+        </div>
+      </div>
+      <div class="login-watermark" aria-hidden="true">TRAPICO.</div>
+    </div>
+  </section>
+
+  <section class="su-right" aria-label="Create account">
+    <div class="su-wrap">
+      <h2 class="su-title">CREATE ACCOUNT</h2>
+
+      <form id="dispatch-signup" class="su-form" autocomplete="off" onsubmit="return false" novalidate>
+        <div class="su-grid">
+          <div class="su-field">
+            <label class="su-label" for="dis-username">USERNAME *</label>
+            <input id="dis-username" class="su-input" type="text" placeholder="jdelacruz" autocomplete="username" />
+          </div>
+
+          <div class="su-field">
+            <label class="su-label" for="dis-phone">PHONE *</label>
+            <input id="dis-phone" class="su-input" type="tel" placeholder="+63 9..." autocomplete="tel" />
+          </div>
+
+          <div class="su-field">
+            <label class="su-label">BARANGAY *</label>
+            <div class="su-select-wrap" id="dis-brgy-wrap">
+              <button class="su-select-btn" id="dis-brgy-btn" type="button" onclick="toggleDropdown('dis-brgy')" aria-haspopup="listbox" aria-expanded="false">
+                <span class="su-select-val" id="dis-brgy-val">-- Select --</span>
+                <span class="su-select-arrow" aria-hidden="true">▾</span>
+              </button>
+              <ul class="su-select-list hidden" id="dis-brgy-list" role="listbox">
+                <li class="su-option su-option-disabled" aria-disabled="true">-- Select --</li>
+                <li class="su-option" role="option" onclick="selectOption('dis-brgy','Commonwealth')">Commonwealth</li>
+                <li class="su-option" role="option" onclick="selectOption('dis-brgy','Batasan Hills')">Batasan Hills</li>
+                <li class="su-option" role="option" onclick="selectOption('dis-brgy','Central')">Central</li>
+                <li class="su-option" role="option" onclick="selectOption('dis-brgy','Sto. Cristo')">Sto. Cristo</li>
+              </ul>
+              <input type="hidden" id="dis-brgy-input" name="barangay" />
+            </div>
+          </div>
+
+          <div class="su-field">
+            <label class="su-label" for="dis-password">PASSWORD *</label>
+            <div class="su-pw-wrap">
+              <input id="dis-password" class="su-input su-pw-input" type="password" placeholder="Min. 8 chars, 1 uppercase," autocomplete="new-password" />
+              <button class="su-pw-toggle" type="button" id="dis-pw-toggle" onclick="toggleSuPassword('dis-password','dis-pw-toggle')" aria-label="Show password">◔</button>
+            </div>
+          </div>
+
+          <div class="su-field">
+            <label class="su-label" for="dis-confirm">CONFIRM *</label>
+            <div class="su-pw-wrap">
+              <input id="dis-confirm" class="su-input su-pw-input" type="password" placeholder="Confirm password" autocomplete="new-password" />
+              <button class="su-pw-toggle" type="button" id="dis-confirm-toggle" onclick="toggleSuPassword('dis-confirm','dis-confirm-toggle')" aria-label="Show confirm password">◔</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="su-legal su-legal-inline">
+          <label class="su-check-row">
+            <input type="checkbox" id="dis-terms" class="su-checkbox" checked onchange="updateSubmitState()" />
+            <span class="su-check-label"><button type="button" class="su-legal-link" onclick="openLegalModal('terms')">TERMS</button></span>
+          </label>
+
+          <label class="su-check-row">
+            <input type="checkbox" id="dis-privacy" class="su-checkbox" checked onchange="updateSubmitState()" />
+            <span class="su-check-label"><button type="button" class="su-legal-link" onclick="openLegalModal('privacy')">PRIVACY</button></span>
+          </label>
+        </div>
+
+        <div id="dis-error" class="su-error hidden" role="alert"></div>
+
+        <button type="submit" class="su-submit su-submit-disabled" id="dis-submit" disabled onclick="submitDispatchSignup()">CREATE ACCOUNT →</button>
+      </form>
+
+      <div class="su-footer-link">Already have an account? <a href="citizen-login.html">Sign in</a></div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ══════════════════════════════════════════════
+     LEGAL MODAL OVERLAY
+     ══════════════════════════════════════════════ -->
+<div class="legal-backdrop hidden" id="legal-backdrop" onclick="handleBackdropClick(event)" role="dialog" aria-modal="true" aria-labelledby="legal-modal-head">
+  <div class="legal-modal" id="legal-modal">
+    <div class="legal-modal-head" id="legal-modal-head">TERMS AND CONDITIONS</div>
+    <hr class="legal-divider" />
+    <div class="legal-modal-body" id="legal-modal-body"></div>
+    <button class="legal-accept" type="button" onclick="acceptModal()">ACCEPT AND CLOSE</button>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="api.js"></script>
+<script src="signup.js"></script>
+</body>
+</html>

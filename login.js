@@ -4,16 +4,60 @@
 
 'use strict';
 
-let selectedRole = 'regular';
+const roleConfig = {
+  dispatch: {
+    kicker: 'DISPATCH ACCESS',
+    idLabel: 'EMPLOYEE ID',
+    idPlaceholder: 'e.g. 2024-001',
+    requiredMessage: 'Employee ID and password are required.',
+  },
+  field: {
+    kicker: 'FIELD OFFICER ACCESS',
+    idLabel: 'EMPLOYEE ID',
+    idPlaceholder: 'e.g. 2024-001',
+    requiredMessage: 'Employee ID and password are required.',
+  },
+  regular: {
+    kicker: 'CITIZEN ACCESS',
+    idLabel: 'USERNAME OR EMAIL',
+    idPlaceholder: 'e.g. rikka',
+    requiredMessage: 'Username or email and password are required.',
+  },
+};
 
-function selectRole(el) {
-  document.querySelectorAll('.role-card').forEach(c => {
-    c.classList.remove('active');
-    c.querySelector('.role-check').textContent = '';
-  });
-  el.classList.add('active');
-  el.querySelector('.role-check').textContent = '✓';
-  selectedRole = el.dataset.role;
+const selectedRole = document.body?.dataset?.role || 'dispatch';
+const activeConfig = roleConfig[selectedRole] || roleConfig.dispatch;
+
+document.addEventListener('DOMContentLoaded', () => {
+  const kicker = document.querySelector('.login-kicker');
+  const userLabel = document.querySelector('label[for="login-user"]');
+  const userInput = document.getElementById('login-user');
+  const errEl = document.getElementById('login-error');
+
+  if (kicker) kicker.textContent = activeConfig.kicker;
+  if (userLabel) userLabel.textContent = activeConfig.idLabel;
+  if (userInput) userInput.placeholder = activeConfig.idPlaceholder;
+  if (errEl) errEl.textContent = activeConfig.requiredMessage;
+});
+
+function togglePasswordVisibility() {
+  const input = document.getElementById('login-pass');
+  const toggle = document.getElementById('password-toggle');
+  const showing = input.type === 'text';
+
+  input.type = showing ? 'password' : 'text';
+  toggle.textContent = showing ? '◔' : '◕';
+  toggle.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+}
+
+function openForgotModal(event) {
+  event.preventDefault();
+  document.getElementById('forgot-modal-overlay').classList.remove('hidden');
+}
+
+function closeForgotModal(event) {
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById('forgot-modal-overlay').classList.add('hidden');
 }
 
 async function doLogin() {
@@ -22,7 +66,7 @@ async function doLogin() {
   const errEl = document.getElementById('login-error');
 
   if (!user || !pass) {
-    errEl.textContent = 'Username and password are required.';
+    errEl.textContent = activeConfig.requiredMessage;
     errEl.classList.remove('hidden');
     return;
   }
@@ -50,5 +94,8 @@ async function doLogin() {
 
 /* Allow Enter key to submit */
 document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeForgotModal();
+  }
   if (e.key === 'Enter') doLogin();
 });
