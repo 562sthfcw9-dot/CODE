@@ -255,9 +255,15 @@ async function logout() {
   } catch (error) {
     console.warn('Logout API error:', error.message);
   }
-  const base = window.location.pathname.replace(/\/[^\/]*$/, '/');
-  const route = new URL('index.html', window.location.origin + base).href;
-  window.location.href = route;
+  const pathMatch = window.location.pathname.match(/\/(CITIZEN|DISPATCH|FIELD)\//i);
+  const folder = pathMatch ? pathMatch[1].toUpperCase() : null;
+  const loginMap = {
+    CITIZEN:  '../citizen-login.html',
+    DISPATCH: '../dispatch-login.html',
+    FIELD:    '../field-login.html',
+  };
+  const loginPage = folder ? loginMap[folder] : 'index.html';
+  window.location.href = new URL(loginPage, window.location.href).href;
 }
 
 function navigateToPage(pageId) {

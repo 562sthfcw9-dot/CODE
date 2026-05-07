@@ -1,4 +1,7 @@
 
+DROP DATABASE IF EXISTS trapico;
+CREATE DATABASE trapico CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE trapico;
 
 -- 2. CITIZEN_ACCOUNTS (Civilian User Role)
 -- Explicit name to distinguish from Officers/Dispatchers
