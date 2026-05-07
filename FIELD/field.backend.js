@@ -30,7 +30,7 @@ let draftAutosaveTimer = null;
 let performanceRefreshInterval = null;
 
 const FIELD_DRAFT_STORE_KEY = 'field_resolution_drafts_v1';
-const FIELD_STATUS_OPTIONS = ['submitted', 'verified', 'assigned', 'in_progress', 'resolved', 'closed'];
+const FIELD_STATUS_OPTIONS = ['submitted', 'verified', 'assigned', 'en_route', 'in_progress', 'resolved', 'validated', 'closed'];
 
 function getDraftStore() {
     try {
@@ -251,6 +251,43 @@ function statusOptionsMarkup(currentStatus = '') {
         .join('');
 }
 
+function renderTransparencyTimeline(currentStatus = 'submitted') {
+    const statusIndex = FIELD_STATUS_OPTIONS.indexOf(String(currentStatus).toLowerCase());
+    const timelineItems = FIELD_STATUS_OPTIONS.map((status, idx) => {
+        const isCompleted = idx < statusIndex;
+        const isCurrent = idx === statusIndex;
+        const statusDisplay = status.replace('_', ' ').charAt(0).toUpperCase() + status.replace('_', ' ').slice(1);
+        
+        let indicator = '';
+        if (isCompleted) {
+            indicator = '✓';
+        } else if (isCurrent) {
+            indicator = '●';
+        } else {
+            indicator = '○';
+        }
+        
+        const circleClass = isCompleted ? 'timeline-check' : isCurrent ? 'timeline-active' : 'timeline-pending';
+        
+        return `
+            <div class="timeline-item ${circleClass}">
+                <div class="timeline-circle">${indicator}</div>
+                <div class="timeline-content">
+                    <div class="timeline-status">${statusDisplay}</div>
+                    <div class="timeline-time">${idx === 0 ? formatDateTime(new Date()) : '—'}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="transparency-timeline">
+            <div class="timeline-title">Transparency Timeline</div>
+            ${timelineItems}
+        </div>
+    `;
+}
+
 function renderAssigned() {
     const list = myAssigned();
     const el = document.getElementById('assigned-list');
@@ -295,21 +332,14 @@ function renderAssigned() {
               <div class="assigned-meta-row"><span class="assigned-meta-label">Priority</span><span class="assigned-meta-val">${safeText(c.priority)}</span></div>
                             <div class="assigned-meta-row"><span class="assigned-meta-label">Reporter</span><span class="assigned-meta-val">${safeText(getReporterName(c))}</span></div>
                             <div class="assigned-meta-row"><span class="assigned-meta-label">Status</span><span class="assigned-meta-val" style="text-transform:capitalize">${safeText(String(c.status || '').replace('_', ' '))}</span></div>
-                            <div class="assigned-meta-row" style="padding-top:8px;display:block">
-                                <div class="status-control-row">
-                                    <select class="form-select status-select" id="assigned-status-${safeText(c.assignment_id)}">${statusOptionsMarkup(c.status)}</select>
-                                    <button type="button" class="btn-secondary btn-sm" onclick="applyStatusFromAssigned('${safeText(c.assignment_id)}')">Update</button>
-                                </div>
-                            </div>
             </div>
           </div>
           <div>
             <div class="assigned-map-shell" style="height:170px;border-radius:8px;border:1px solid var(--border);overflow:hidden;position:relative">
               <div id="assigned-map-${safeText(c.assignment_id)}" class="assigned-case-map" style="height:100%"></div>
             </div>
-            <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <div style="margin-top:8px">
                             <span id="assigned-map-label-${safeText(c.assignment_id)}" style="font-size:12px;color:var(--mist)">${safeText(coordText)}</span>
-                            <button type="button" class="btn-secondary btn-sm" onclick="centerAssignedMapToGps('${safeText(c.assignment_id)}')">Pin My Location</button>
             </div>
           </div>
         </div>
@@ -445,18 +475,13 @@ function renderActiveJob() {
                     </div>
                 </div>
 
+                ${renderTransparencyTimeline(statusText)}
+
                                 <div class="job-meta-grid">
                                         <div class="job-meta-cell"><div class="job-meta-k">Description</div><div class="job-meta-v">${safeText(assignment.desc || 'No description')}</div></div>
                                         <div class="job-meta-cell"><div class="job-meta-k">Date/Time</div><div class="job-meta-v">${formatDateTime(assignment.date)}</div></div>
                                         <div class="job-meta-cell"><div class="job-meta-k">Priority</div><div class="job-meta-v">${safeText(assignment.priority)}</div></div>
                                         <div class="job-meta-cell"><div class="job-meta-k">Reporter</div><div class="job-meta-v">${safeText(getReporterName(assignment))}</div></div>
-                                        <div class="job-meta-cell job-status-cell">
-                                            <div class="job-meta-k">Update Report Status</div>
-                                            <div class="status-control-row">
-                                                <select class="form-select status-select" id="active-status-select">${statusOptionsMarkup(assignment.status)}</select>
-                                                <button type="button" class="btn-secondary btn-sm" onclick="updateAssignmentStatus('${safeText(assignment.assignment_id)}', getStatusSelectValue('${safeText(assignment.assignment_id)}'))">Apply</button>
-                                            </div>
-                                        </div>
                                 </div>
 
                 <div class="countdown-box">
@@ -476,9 +501,8 @@ function renderActiveJob() {
 
                                 <div style="margin-bottom:20px">
                                         <div id="active-job-map" style="height:220px;border-radius:8px;border:1px solid var(--border)"></div>
-                                        <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+                                        <div style="margin-top:8px">
                                             <span id="active-job-map-label" style="font-size:12px;color:var(--mist)">Loading map…</span>
-                                            <button type="button" class="btn-secondary btn-sm" onclick="centerActiveJobMapToGps()">Pin My Location</button>
                                         </div>
                 </div>
 
@@ -681,11 +705,8 @@ async function attemptCheckin() {
                 lat: position.coords.latitude,
                 lng: position.coords.longitude,
             }, 'POST');
-            showToast('✓ Geofence check-in confirmed. Status updated to In Progress.');
-            await loadAssignedTasks();
-            renderDashboard();
-            renderAssigned();
-            renderActiveJob();
+            showToast('✓ Geofence check-in confirmed.');
+            await updateAssignmentStatus(assignment.assignment_id, 'en_route');
         } catch (error) {
             showToast(error.message);
         }
@@ -703,11 +724,8 @@ async function simulateArrival() {
 
     try {
         await apiFetch('field.php', {action: 'checkin', assignment_id: assignment.assignment_id, simulate: 1}, 'POST');
-        showToast('Geofence check-in simulated. Complaint status updated to In Progress.');
-        await loadAssignedTasks();
-        renderDashboard();
-        renderAssigned();
-        renderActiveJob();
+        showToast('✓ Geofence check-in simulated.');
+        await updateAssignmentStatus(assignment.assignment_id, 'in_progress');
     } catch (error) {
         showToast(error.message);
     }
@@ -740,16 +758,11 @@ async function submitResolution() {
             before_photo_url: evidenceUploads.before || '',
             after_photo_url: evidenceUploads.after || '',
         }, 'POST');
-        showToast('✓ Resolution report submitted. Awaiting Dispatch Officer review.');
-        await Promise.all([loadAssignedTasks(), loadHistory(), loadPerformance()]);
+        showToast('✓ Resolution report submitted.');
         clearAssignmentDraft(assignment.assignment_id);
         activeAssignmentId = null;
         evidenceUploads = {before: null, after: null};
-        renderDashboard();
-        renderAssigned();
-        renderActiveJob();
-        renderHistory();
-        renderPerformance();
+        await updateAssignmentStatus(assignment.assignment_id, 'resolved');
         setActivePage('history');
     } catch (error) {
         showToast(error.message);

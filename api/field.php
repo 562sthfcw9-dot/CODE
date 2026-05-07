@@ -30,7 +30,7 @@ if ($action === 'assigned') {
 if ($action === 'updateStatus') {
     $assignmentId = intval($data['assignment_id'] ?? 0);
     $newStatus = trim((string)($data['status'] ?? ''));
-    $allowedStatuses = ['submitted', 'verified', 'assigned', 'in_progress', 'resolved', 'closed'];
+    $allowedStatuses = ['submitted', 'verified', 'assigned', 'en_route', 'in_progress', 'resolved', 'validated', 'closed'];
 
     if ($assignmentId <= 0 || $newStatus === '') {
         errorResponse('Assignment ID and status are required.');
@@ -51,9 +51,9 @@ if ($action === 'updateStatus') {
     }
 
     $assignmentStatus = 'pending';
-    if ($newStatus === 'in_progress') {
+    if ($newStatus === 'en_route' || $newStatus === 'in_progress') {
         $assignmentStatus = 'in_progress';
-    } elseif ($newStatus === 'resolved' || $newStatus === 'closed') {
+    } elseif ($newStatus === 'resolved' || $newStatus === 'validated' || $newStatus === 'closed') {
         $assignmentStatus = 'completed';
     }
 
