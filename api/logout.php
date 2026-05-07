@@ -2,6 +2,29 @@
 require_once __DIR__ . '/init.php';
 
 if (session_status() === PHP_SESSION_ACTIVE) {
+    $role = getRequestedRoleContext();
+
+    if ($role !== '' && isset($_SESSION['trapico_user_by_role']) && is_array($_SESSION['trapico_user_by_role'])) {
+        unset($_SESSION['trapico_user_by_role'][$role]);
+
+        if (isset($_SESSION['trapico_user']['role']) && $_SESSION['trapico_user']['role'] === $role) {
+            $_SESSION['trapico_user'] = null;
+            foreach (['regular', 'dispatch', 'field'] as $candidateRole) {
+                if (isset($_SESSION['trapico_user_by_role'][$candidateRole])) {
+                    $_SESSION['trapico_user'] = $_SESSION['trapico_user_by_role'][$candidateRole];
+                    break;
+                }
+            }
+            if ($_SESSION['trapico_user'] === null) {
+                unset($_SESSION['trapico_user']);
+            }
+        }
+
+        successResponse(['message' => ucfirst($role) . ' account logged out successfully.']);
+    }
+}
+
+if (session_status() === PHP_SESSION_ACTIVE) {
     $_SESSION = [];
     if (ini_get('session.use_cookies')) {
         $params = session_get_cookie_params();

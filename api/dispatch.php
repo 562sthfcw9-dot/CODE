@@ -202,8 +202,14 @@ if ($action === 'reject') {
         errorResponse('Complaint not found.');
     }
 
-    $db->prepare('UPDATE Complaints SET status = :status, rejection_reason = :reason, rejected_by = :did, dispatch_id = :did WHERE complaint_id = :cid')
-       ->execute([':status' => 'rejected', ':reason' => $reason, ':did' => $dispatchId, ':cid' => $complaintId]);
+    try {
+        $db->prepare('UPDATE Complaints SET status = :status, rejection_reason = :reason, rejected_by = :did, dispatch_id = :did WHERE complaint_id = :cid')
+           ->execute([':status' => 'rejected', ':reason' => $reason, ':did' => $dispatchId, ':cid' => $complaintId]);
+    } catch (PDOException $e) {
+        // Fallback for older schemas that do not yet include rejection metadata columns.
+        $db->prepare('UPDATE Complaints SET status = :status, dispatch_id = :did WHERE complaint_id = :cid')
+           ->execute([':status' => 'rejected', ':did' => $dispatchId, ':cid' => $complaintId]);
+    }
 
     $db->prepare('INSERT INTO Status_history (complaint_id, changed_by, status, notes) VALUES (:cid, :uid, :status, :notes)')
        ->execute([':cid' => $complaintId, ':uid' => $dispatchUid, ':status' => 'rejected', ':notes' => $reason]);

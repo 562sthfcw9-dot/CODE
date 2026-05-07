@@ -7,7 +7,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, X-TRAPICO-ROLE');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
@@ -44,7 +44,37 @@ function errorResponse(string $message, int $status = 400): void
 
 function getCurrentUser(): ?array
 {
+    $requestedRole = getRequestedRoleContext();
+
+    if ($requestedRole !== '' && isset($_SESSION['trapico_user_by_role'][$requestedRole])) {
+        return $_SESSION['trapico_user_by_role'][$requestedRole];
+    }
+
     return $_SESSION['trapico_user'] ?? null;
+}
+
+function getRequestedRoleContext(): string
+{
+    $headerRole = trim(strtolower((string)($_SERVER['HTTP_X_TRAPICO_ROLE'] ?? '')));
+    $allowed = ['regular', 'dispatch', 'field'];
+    if (in_array($headerRole, $allowed, true)) {
+        return $headerRole;
+    }
+
+    $referrer = trim(strtolower((string)($_SERVER['HTTP_REFERER'] ?? '')));
+    if ($referrer !== '') {
+        if (strpos($referrer, '/citizen/') !== false || strpos($referrer, 'citizen-login') !== false || strpos($referrer, 'citizen-signup') !== false) {
+            return 'regular';
+        }
+        if (strpos($referrer, '/dispatch/') !== false || strpos($referrer, 'dispatch-login') !== false || strpos($referrer, 'dispatch-signup') !== false) {
+            return 'dispatch';
+        }
+        if (strpos($referrer, '/field/') !== false || strpos($referrer, 'field-login') !== false || strpos($referrer, 'field-signup') !== false) {
+            return 'field';
+        }
+    }
+
+    return '';
 }
 
 function requireLogin(): array

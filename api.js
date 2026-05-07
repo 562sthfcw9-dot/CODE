@@ -40,18 +40,40 @@ function buildQuery(params) {
         .join('&');
 }
 
+function getClientRoleContext() {
+    const path = String(window.location.pathname || '').toLowerCase();
+    const bodyRole = String(document.body?.dataset?.role || '').toLowerCase();
+
+    if (path.includes('/citizen/') || path.includes('citizen-login') || path.includes('citizen-signup') || bodyRole === 'regular' || bodyRole === 'citizen') {
+        return 'regular';
+    }
+    if (path.includes('/dispatch/') || path.includes('dispatch-login') || path.includes('dispatch-signup') || bodyRole === 'dispatch') {
+        return 'dispatch';
+    }
+    if (path.includes('/field/') || path.includes('field-login') || path.includes('field-signup') || bodyRole === 'field') {
+        return 'field';
+    }
+    return '';
+}
+
 async function apiFetch(endpoint, data = null, method = 'GET') {
     const normalizedMethod = String(method || 'GET').toUpperCase();
+    const roleContext = getClientRoleContext();
     const options = {
         method: normalizedMethod,
         credentials: 'include',
+        headers: {},
     };
+
+    if (roleContext) {
+        options.headers['X-TRAPICO-ROLE'] = roleContext;
+    }
 
     if (normalizedMethod !== 'GET') {
         if (data instanceof FormData) {
             options.body = data;
         } else {
-            options.headers = {'Content-Type': 'application/json'};
+            options.headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(data || {});
         }
     }

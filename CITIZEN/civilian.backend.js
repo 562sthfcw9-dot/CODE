@@ -16,6 +16,7 @@ let complaintMapMarker = null;
 let pinnedLat = null;
 let pinnedLng = null;
 let latestEvidenceCapturedAt = null;
+let timelineLocationMap = null;
 
 function setPinnedLocation(lat, lng, zoom = 17, prefix = 'Pinned') {
     pinnedLat = Number(lat);
@@ -850,6 +851,35 @@ function updateAddressField() {
 /* ── TIMELINE (API-backed, overrides data.js version) ──────── */
 const _tlRatings = {};
 
+function toSafeDomId(value) {
+    return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+function mountTimelineLocationMap(containerId, lat, lng) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+
+    const latNum = Number(lat);
+    const lngNum = Number(lng);
+    if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return;
+
+    if (timelineLocationMap) {
+        timelineLocationMap.remove();
+        timelineLocationMap = null;
+    }
+
+    timelineLocationMap = L.map(containerId, {zoomControl: false, scrollWheelZoom: false, dragging: true}).setView([latNum, lngNum], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 19,
+    }).addTo(timelineLocationMap);
+    L.marker([latNum, lngNum]).addTo(timelineLocationMap);
+
+    setTimeout(() => {
+        if (timelineLocationMap) timelineLocationMap.invalidateSize();
+    }, 30);
+}
+
 async function showTimeline(complaintId) {
     const c = MY_COMPLAINTS.find(x => x.id === complaintId);
     if (!c) { showToast('Complaint not found.'); return; }
@@ -864,25 +894,74 @@ async function showTimeline(complaintId) {
     }
 
     const statusLabels = {
-        submitted: 'Submitted', verified: 'Verified', assigned: 'Assigned',
-        in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed',
-        cancelled: 'Cancelled', rejected: 'Rejected',
+        submitted: 'Submitted',
+        verified: 'Verified',
+        assigned: 'Assigned',
+        en_route: 'En Route',
+        in_progress: 'In Progress',
+        resolved: 'Resolved',
+        validated: 'Validated',
+        closed: 'Closed',
+        rejected: 'Rejected',
+        cancelled: 'Cancelled',
+    };
+    const fallbackNotes = {
+        submitted: 'Complaint received. Tracking ID generated.',
+        verified: '-',
+        assigned: '-',
+        en_route: '-',
+        in_progress: '-',
+        resolved: '-',
+        validated: '-',
+        closed: '-',
+        rejected: '-',
+        cancelled: '-',
     };
 
-    const stagesHtml = timeline.length
-        ? timeline.map(s => {
-            const isNeg = s.status === 'cancelled' || s.status === 'rejected';
-            return `
-              <div class="timeline-item">
-                <div class="tl-dot ${isNeg ? 'rejected' : 'done'}">${isNeg ? '✕' : '✓'}</div>
-                <div class="tl-content">
-                  <div class="tl-label">${safeText(statusLabels[s.status] || s.status)}</div>
-                  <div class="tl-time">${formatDateTime(s.time)}</div>
-                  ${s.remarks ? `<div class="tl-note">${safeText(s.remarks)}</div>` : ''}
-                </div>
-              </div>`;
-        }).join('')
-        : `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">No timeline data yet</div></div>`;
+    const flowOrder = ['submitted', 'verified', 'assigned', 'en_route', 'in_progress', 'resolved', 'validated', 'closed'];
+    const allStages = [...flowOrder, 'rejected', 'cancelled'];
+    const currentStatus = String(c.status || '').toLowerCase();
+    const flowIndex = flowOrder.indexOf(currentStatus);
+
+    const timelineMap = {};
+    timeline.forEach(s => {
+        const key = String(s.status || '').toLowerCase();
+        timelineMap[key] = s;
+    });
+    if (!timelineMap.submitted && c.date) {
+        timelineMap.submitted = {status: 'submitted', time: c.date, remarks: 'Complaint received. Tracking ID generated.'};
+    }
+
+    const stagesHtml = allStages.map(status => {
+        const item = timelineMap[status] || null;
+        const isTerminalNegative = status === 'rejected' || status === 'cancelled';
+
+        let isDone = false;
+        if (isTerminalNegative) {
+            isDone = currentStatus === status;
+        } else if (flowIndex >= 0) {
+            isDone = flowOrder.indexOf(status) <= flowIndex;
+        } else if (currentStatus === 'rejected' || currentStatus === 'cancelled') {
+            isDone = status === 'submitted';
+        }
+
+        const dotClass = isDone
+            ? (isTerminalNegative ? 'rejected' : 'done')
+            : '';
+        const dotLabel = isDone ? (isTerminalNegative ? '✕' : '✓') : '○';
+        const timeText = item?.time ? formatDateTime(item.time) : '—';
+        const noteText = item?.remarks ? safeText(item.remarks) : fallbackNotes[status];
+
+        return `
+          <div class="timeline-item">
+            <div class="tl-dot ${dotClass}">${dotLabel}</div>
+            <div class="tl-content">
+              <div class="tl-label">${safeText(statusLabels[status] || status)}</div>
+              <div class="tl-time">${safeText(timeText)}</div>
+              <div class="tl-note">${safeText(noteText)}</div>
+            </div>
+          </div>`;
+    }).join('');
 
     const isRatable = ['closed', 'resolved'].includes(c.status);
     const safeId = safeText(complaintId);
@@ -898,7 +977,14 @@ async function showTimeline(complaintId) {
         </div>
       </div>` : '';
 
-    openModal(`
+        const mapContainerId = `timeline-location-map-${toSafeDomId(safeId)}`;
+        const latNum = Number(c.lat);
+        const lngNum = Number(c.lng);
+        const hasCoords = Number.isFinite(latNum) && Number.isFinite(lngNum);
+        const coordText = hasCoords ? `${latNum.toFixed(5)}, ${lngNum.toFixed(5)}` : 'Location unavailable';
+        const locationText = String(c.address || '').trim() || 'Address unavailable';
+
+        openModal(`
       <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
         <div class="modal">
           <div class="modal-head">
@@ -910,6 +996,12 @@ async function showTimeline(complaintId) {
           </div>
           <div class="modal-body">
             <div class="badge-row">${statusBadge(c.status)} ${priorityBadge(c.priority)}</div>
+                        <div class="complaint-desc" style="margin-top:12px">${safeText(c.description || '')}</div>
+                        <div class="section-title" style="margin:16px 0 10px">Incident Location</div>
+                        ${hasCoords
+                                ? `<div id="${mapContainerId}" style="height:200px;border:1px solid var(--border)"></div>`
+                                : mapPlaceholder(200, 'Location unavailable', c.lat, c.lng)}
+                        <div class="mono" style="margin-top:8px;font-size:12px;color:var(--mist)">${safeText(coordText)} - ${safeText(locationText)}</div>
             <div class="section-title" style="margin-bottom:16px">Transparency Timeline</div>
             <div class="timeline">${stagesHtml}</div>
             ${ratingHtml}
@@ -919,6 +1011,10 @@ async function showTimeline(complaintId) {
           </div>
         </div>
       </div>`);
+
+    if (hasCoords) {
+        setTimeout(() => mountTimelineLocationMap(mapContainerId, latNum, lngNum), 20);
+    }
 }
 
 function setTimelineRating(n, complaintId) {

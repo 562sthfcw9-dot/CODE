@@ -781,6 +781,27 @@ async function submitReject(id) {
     }
 }
 
+    async function confirmReject(id) {
+      const inlineReason = document.getElementById('reject-reason-inline')?.value.trim() || '';
+      if (!inlineReason) {
+        showToast('Please enter a rejection reason.');
+        return;
+      }
+
+      closeModal();
+      try {
+        await apiFetch('dispatch.php', {action: 'reject', id, reason: inlineReason}, 'POST');
+        showToast('Complaint rejected. Reason sent to user.');
+        showNotification(`Complaint ${id} rejected`, 'Reason sent to reporting user');
+        await loadDispatchData();
+        renderDashboard();
+        renderQueueTable();
+        renderActiveCases();
+      } catch (error) {
+        showToast(error.message);
+      }
+    }
+
 async function reassignCase(id) {
     const availableOfficers = FIELD_OFFICERS_DATA.filter(o => o.status === 'available');
     if (!availableOfficers.length) {

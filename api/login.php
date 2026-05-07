@@ -82,4 +82,9 @@ $_SESSION['trapico_user'] = [
     'home_barangay'=> $user['home_barangay'] ?? '',
 ];
 
+if (!isset($_SESSION['trapico_user_by_role']) || !is_array($_SESSION['trapico_user_by_role'])) {
+    $_SESSION['trapico_user_by_role'] = [];
+}
+$_SESSION['trapico_user_by_role'][$role] = $_SESSION['trapico_user'];
+
 successResponse(['redirect' => $redirect, 'user' => $_SESSION['trapico_user']]);

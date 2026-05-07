@@ -23,7 +23,7 @@ if ($action === 'list') {
         $stmt = $db->prepare(
             'SELECT tracking_id AS id, category AS cat, asset_town AS brgy, priority,
                     status, submitted_at AS date, is_anonymous AS anon,
-                    description, latitude AS lat, longitude AS lng
+                    description, address, latitude AS lat, longitude AS lng
              FROM Complaints
              WHERE user_id = :uid
              ORDER BY submitted_at DESC'
