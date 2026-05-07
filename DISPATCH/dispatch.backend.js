@@ -982,6 +982,9 @@ function renderOfficers() {
           if (newIncomingCount > 0) {
             officerUnreadCountMap[chatKey] = Number(officerUnreadCountMap[chatKey] || 0) + newIncomingCount;
             officerChatAlertMap[chatKey] = true;
+            if (!(activeChat && String(activeChat.receiverRole) === String(receiverRole) && String(activeChat.receiverId) === String(receiverId))) {
+              showNotification(`New message from ${o.name || 'Field Officer'}`, `${newIncomingCount} unread message(s)`);
+            }
           }
           officerLastIncomingMap[chatKey] = Math.max(prevIncomingId, lastIncomingId);
         } catch (error) {

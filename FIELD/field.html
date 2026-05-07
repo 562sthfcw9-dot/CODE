@@ -24,7 +24,7 @@
     <div class="sidebar-role-badge">
       <span class="srb-icon">🛡️</span>
       <div>
-        <div class="srb-name">Ofc. Ramon Reyes</div>
+        <div class="srb-name" id="field-sb-name">Field Officer</div>
         <div class="srb-label">Field Officer</div>
       </div>
     </div>
@@ -32,7 +32,7 @@
       <div class="nav-section-label">Navigation</div>
       <div class="nav-item active" id="nav-dash"        onclick="setActivePage('dash')">        <span class="nav-icon">🏠</span> My Dashboard     </div>
       <div class="nav-item"        id="nav-assigned"    onclick="setActivePage('assigned')">    <span class="nav-icon">📋</span> Assigned Cases  <span class="nav-badge" id="badge-assigned">3</span> </div>
-      <div class="nav-item"        id="nav-job"         onclick="setActivePage('job')">         <span class="nav-icon">🔴</span> Active Job       </div>
+      <div class="nav-item"        id="nav-job"         onclick="setActivePage('job')">         <span class="nav-icon">🔴</span> Active Job <span class="nav-badge hidden" id="badge-dispatch-msg">0</span>      </div>
       <div class="nav-item"        id="nav-drafts"      onclick="setActivePage('drafts')">      <span class="nav-icon">🧾</span> Drafts           </div>
       <div class="nav-item"        id="nav-history"     onclick="setActivePage('history')">     <span class="nav-icon">📁</span> Case History     </div>
       <div class="nav-item"        id="nav-performance" onclick="setActivePage('performance')"> <span class="nav-icon">📊</span> My Performance   </div>
@@ -62,8 +62,8 @@
           </div>
         </div>
         <div class="user-chip">
-          <div class="user-avatar">RR</div>
-          <span class="user-chip-name">Ofc. Reyes</span>
+          <div class="user-avatar" id="field-top-avatar">--</div>
+          <span class="user-chip-name" id="field-top-name">Field Officer</span>
         </div>
       </div>
     </header>
@@ -278,9 +278,9 @@
 <div id="modal-container"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="../data.js?v=20260508b"></script>
-<script src="../api.js?v=20260508b"></script>
-<script src="field.js?v=20260508b"></script>
-<script src="field.backend.js?v=20260508b"></script>
+<script src="../data.js?v=20260508c"></script>
+<script src="../api.js?v=20260508c"></script>
+<script src="field.js?v=20260508c"></script>
+<script src="field.backend.js?v=20260508c"></script>
 </body>
 </html>

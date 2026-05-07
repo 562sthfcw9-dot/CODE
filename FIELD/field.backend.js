@@ -19,6 +19,9 @@ let activeJobOfficerMarker = null;
 let activeChat = null;
 let chatLastId = 0;
 let chatInterval = null;
+let dispatchChatAlert = false;
+let dispatchLastIncomingId = 0;
+let dispatchChatAlertInterval = null;
 
 window.addEventListener('DOMContentLoaded', initField);
 let notificationLastId = 0;
@@ -144,6 +147,24 @@ async function initField() {
     if (!user) return;
     FIELD_USER = user;
 
+    const displayName = user.name || user.username || 'Field Officer';
+    const initials = String(displayName)
+        .split(' ')
+        .filter(Boolean)
+        .map(part => part.charAt(0))
+        .join('')
+        .slice(0, 2)
+        .toUpperCase() || 'FO';
+
+    const sidebarNameEl = document.getElementById('field-sb-name');
+    if (sidebarNameEl) sidebarNameEl.textContent = displayName;
+
+    const topNameEl = document.getElementById('field-top-name');
+    if (topNameEl) topNameEl.textContent = displayName;
+
+    const topAvatarEl = document.getElementById('field-top-avatar');
+    if (topAvatarEl) topAvatarEl.textContent = initials;
+
     await Promise.all([loadAssignedTasks(), loadHistory(), loadPerformance()]);
     renderDashboard();
     renderAssigned();
@@ -151,6 +172,79 @@ async function initField() {
     renderHistory();
     renderPerformance();
     startPerformanceRefresh();
+    startDispatchChatAlertPolling();
+}
+
+function getDispatchChatButtonClass() {
+    return dispatchChatAlert ? 'btn-danger' : 'btn-secondary';
+}
+
+function updateDispatchChatButtonStyles() {
+    const btn = document.getElementById('btn-chat-dispatch');
+    if (btn) {
+        btn.classList.remove('btn-secondary', 'btn-danger');
+        btn.classList.add(getDispatchChatButtonClass());
+    }
+
+    const navBadge = document.getElementById('badge-dispatch-msg');
+    if (navBadge) {
+        navBadge.textContent = dispatchChatAlert ? '1' : '0';
+        navBadge.classList.toggle('hidden', !dispatchChatAlert);
+    }
+
+    const notifDot = document.querySelector('#notif-btn .notif-dot');
+    if (notifDot) {
+        notifDot.classList.toggle('hidden', !dispatchChatAlert);
+    }
+}
+
+async function refreshDispatchChatAlerts({baselineOnly = false} = {}) {
+    const assignment = getActiveAssignment();
+    if (!assignment || !assignment.dispatch_id) return;
+
+    const receiverRole = 'dispatch';
+    const receiverId = String(assignment.dispatch_id);
+
+    try {
+        const resp = await apiFetch('messages.php', {action: 'thread', receiver_role: receiverRole, receiver_id: receiverId});
+        const messages = Array.isArray(resp.messages) ? resp.messages : [];
+        const incoming = messages.filter(m => String(m.senderRole || '') !== 'field');
+        const lastIncomingId = incoming.length ? Number(incoming[incoming.length - 1].id || 0) : 0;
+
+        if (dispatchLastIncomingId === 0 || baselineOnly) {
+            dispatchLastIncomingId = lastIncomingId;
+            updateDispatchChatButtonStyles();
+            return;
+        }
+
+        const newIncomingCount = incoming.filter(m => Number(m.id || 0) > dispatchLastIncomingId).length;
+        if (newIncomingCount > 0) {
+            const sameOpenChat = activeChat
+                && String(activeChat.receiverRole) === receiverRole
+                && String(activeChat.receiverId) === receiverId;
+
+            if (!sameOpenChat) {
+                dispatchChatAlert = true;
+                showNotification('New message from Dispatch', `${newIncomingCount} unread message(s)`);
+                updateDispatchChatButtonStyles();
+            }
+        }
+
+        dispatchLastIncomingId = Math.max(dispatchLastIncomingId, lastIncomingId);
+    } catch (error) {
+        console.warn('Unable to refresh dispatch chat alerts:', error.message);
+    }
+}
+
+function startDispatchChatAlertPolling() {
+    if (dispatchChatAlertInterval) {
+        clearInterval(dispatchChatAlertInterval);
+    }
+
+    refreshDispatchChatAlerts({baselineOnly: true});
+    dispatchChatAlertInterval = setInterval(() => {
+        refreshDispatchChatAlerts();
+    }, 5000);
 }
 
 async function loadAssignedTasks() {
@@ -171,6 +265,10 @@ async function loadPerformance() {
 function toggleNotif() {
     fieldNotifOpen = !fieldNotifOpen;
     document.getElementById('notif-panel').classList.toggle('hidden', !fieldNotifOpen);
+    if (fieldNotifOpen) {
+        dispatchChatAlert = false;
+        updateDispatchChatButtonStyles();
+    }
 }
 
 document.addEventListener('click', e => {
@@ -203,6 +301,7 @@ function openJobByAssignment(assignmentId) {
     evidenceUploads = {before: null, after: null};
     renderActiveJob();
     setActivePage('job');
+    refreshDispatchChatAlerts({baselineOnly: true});
 }
 
 function renderDashboard() {
@@ -511,7 +610,7 @@ function renderActiveJob() {
                     <div class="checkin-sub">You must be within 150m of the incident site to check in. The system verifies your GPS coordinates.</div>
                     <div class="checkin-actions" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
                         <button class="btn-danger" id="btn-checkin" onclick="attemptCheckin()" ${checkedIn ? 'disabled style="opacity:.45"' : ''}>📍 Check In (GPS)</button>
-                        <button class="btn-secondary" onclick="openDispatchChat()">💬 Chat with Dispatch</button>
+                        <button class="${getDispatchChatButtonClass()}" id="btn-chat-dispatch" onclick="openDispatchChat()">💬 Chat with Dispatch</button>
                         <button class="btn-success" id="btn-simulate" onclick="simulateArrival()" ${checkedIn ? 'disabled style="opacity:.45"' : ''}>🧪 Simulate Arrival</button>
                     </div>
                     <div class="checkin-status ${checkedIn ? 'ok' : ''}" id="checkin-status">${checkedIn ? '✓ Already checked in for this assignment.' : ''}</div>
@@ -1034,6 +1133,8 @@ function openDispatchChat() {
     }
 
     activeChat = {receiverRole: 'dispatch', receiverId: String(assignment.dispatch_id), name: 'Dispatch Officer'};
+    dispatchChatAlert = false;
+    updateDispatchChatButtonStyles();
     chatLastId = 0;
     loadChatThread();
     startChatPolling();
@@ -1064,6 +1165,11 @@ async function loadChatThread() {
     try {
         const resp = await apiFetch('messages.php', {action: 'thread', receiver_role: activeChat.receiverRole, receiver_id: activeChat.receiverId});
         const messages = resp.messages || [];
+        const incoming = messages.filter(m => String(m.senderRole || '') !== 'field');
+        const lastIncomingId = incoming.length ? Number(incoming[incoming.length - 1].id || 0) : 0;
+        dispatchLastIncomingId = Math.max(dispatchLastIncomingId, lastIncomingId);
+        dispatchChatAlert = false;
+        updateDispatchChatButtonStyles();
         chatLastId = messages.length ? messages[messages.length - 1].id : 0;
         renderChatMessages(messages);
     } catch (error) {
