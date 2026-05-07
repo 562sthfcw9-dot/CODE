@@ -56,7 +56,7 @@ function verifyPassword(string $password, string $storedHash): bool
     }
 
     $info = password_get_info($storedHash);
-    if (is_int($info['algo']) && $info['algo'] > 0) {
+    if (!empty($info['algo'])) {
         return password_verify($password, $storedHash);
     }
 

@@ -169,32 +169,23 @@ async function submitDispatchSignup() {
   submitBtn.textContent = 'CREATING...';
 
   try {
-    const response = await fetch('api/register.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        role: signupRole,
-        username,
-        phone_number: phone,
-        home_barangay: barangay,
-        password,
-      }),
-    });
+    await apiFetch('register.php', {
+      role: signupRole,
+      username,
+      phone_number: phone,
+      home_barangay: barangay,
+      password,
+    }, 'POST');
 
-    const data = await response.json();
-    if (response.ok && data.success) {
-      const signInRoutes = {
-        dispatch: 'dispatch-login.html?registered=1',
-        field: 'field-login.html?registered=1',
-        regular: 'citizen-login.html?registered=1',
-      };
-      window.location.href = signInRoutes[signupRole] || 'index.html?registered=1';
-      return;
-    }
-
-    showError(data.error || data.message || 'Registration failed.');
+    const signInRoutes = {
+      dispatch: 'dispatch-login.html?registered=1',
+      field: 'field-login.html?registered=1',
+      regular: 'citizen-login.html?registered=1',
+    };
+    window.location.href = signInRoutes[signupRole] || 'index.html?registered=1';
+    return;
   } catch (error) {
-    showError('Unable to submit registration right now.');
+    showError(error?.message || 'Unable to submit registration right now.');
   }
 
   submitBtn.textContent = 'CREATE ACCOUNT →';
