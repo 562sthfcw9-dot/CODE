@@ -10,6 +10,12 @@ let selectedPriority = 'medium';
 let civilianBackendCurrentStep = 1;
 let civilianNotifOpen = false;
 
+/* map state */
+let complaintMap = null;
+let complaintMapMarker = null;
+let pinnedLat = null;
+let pinnedLng = null;
+
 window.addEventListener('DOMContentLoaded', initCivilian);
 
 async function initCivilian() {
@@ -20,6 +26,17 @@ async function initCivilian() {
     const displayName = user.name || user.username || 'Citizen';
     document.getElementById('sb-name').textContent = displayName;
     document.getElementById('topbar-username').textContent = displayName;
+
+    /* set today's date as default */
+    const todayInput = document.getElementById('f-date');
+    if (todayInput) todayInput.value = new Date().toISOString().slice(0, 10);
+
+    /* wrap setActivePage to trigger map init when report page opens */
+    const _base = window.setActivePage;
+    window.setActivePage = function (pageId) {
+        _base(pageId);
+        if (pageId === 'report') setTimeout(initComplaintMap, 150);
+    };
 
     await loadMyComplaints();
     renderDashboard();
@@ -68,10 +85,20 @@ function renderDashboard() {
     document.getElementById('stat-total').textContent = my.length;
     document.getElementById('stat-active').textContent = active;
     document.getElementById('stat-resolved').textContent = resolved;
-    document.getElementById('badge-complaints').textContent = active;
+    document.getElementById('badge-complaints').textContent = active || '';
+
+    /* update barangay label */
+    const brgyEl = document.getElementById('user-brgy-label');
+    if (brgyEl && CIVILIAN_USER) {
+        brgyEl.textContent = 'Barangay ' + (CIVILIAN_USER.home_barangay || 'your barangay') + ', Quezon City';
+    }
 
     const tbody = document.getElementById('dash-recent-tbody');
     if (!tbody) return;
+    if (!my.length) {
+        tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">No complaints yet</div><div class="empty-sub">Click "File a Complaint" to get started.</div></div></td></tr>`;
+        return;
+    }
     tbody.innerHTML = my.slice(0, 5).map(c => `
       <tr>
         <td class="track-id">${safeText(c.id)}</td>
@@ -138,6 +165,28 @@ async function cancelComplaint(id) {
 }
 
 function goToStep(step) {
+    /* validate before advancing */
+    if (step === 2) {
+        const cat = document.getElementById('f-cat')?.value;
+        if (!cat) {
+            showToast('Please select a complaint category before proceeding.');
+            return;
+        }
+    }
+    if (step === 3) {
+        const date = document.getElementById('f-date')?.value;
+        const time = document.getElementById('f-time')?.value;
+        const desc = document.getElementById('f-desc')?.value.trim() || '';
+        if (!date || !time) {
+            showToast('Please fill in the incident date and time.');
+            return;
+        }
+        if (desc.length < 50) {
+            showToast('Description must be at least 50 characters (' + desc.length + ' so far).');
+            return;
+        }
+    }
+
     [1, 2, 3].forEach(n => {
         const stepEl = document.getElementById('step-' + n);
         document.getElementById('form-step-' + n).classList.add('hidden');
@@ -150,6 +199,8 @@ function goToStep(step) {
     });
     document.getElementById('form-step-' + step).classList.remove('hidden');
     civilianBackendCurrentStep = step;
+
+    if (step === 1) setTimeout(initComplaintMap, 100);
     if (step === 3) buildReviewSummary();
     window.scrollTo(0, 0);
 }
@@ -218,11 +269,26 @@ async function submitComplaint() {
             description: desc,
             priority: selectedPriority,
             anonymous,
+            lat: pinnedLat,
+            lng: pinnedLng,
         }, 'POST');
         await loadMyComplaints();
         renderDashboard();
         renderComplaintsTable();
         showToast(`✓ Complaint submitted! Tracking ID: ${safeText(response.tracking_number)}`);
+        /* reset form */
+        pinnedLat = null; pinnedLng = null;
+        if (complaintMapMarker) { complaintMapMarker.remove(); complaintMapMarker = null; }
+        const pinLabel = document.getElementById('pin-coords-label');
+        if (pinLabel) pinLabel.textContent = 'Click the map to pin the exact incident location.';
+        document.getElementById('f-cat').value = '';
+        document.getElementById('f-desc').value = '';
+        document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('f-time').value = '';
+        document.getElementById('anon-toggle').checked = false;
+        document.getElementById('anon-warning').classList.add('hidden');
+        selectedPriority = 'medium';
+        document.querySelectorAll('.priority-pill').forEach(p => p.classList.toggle('sel', p.dataset.p === 'medium'));
         goToStep(1);
         setActivePage('complaints');
     } catch (error) {
@@ -295,6 +361,10 @@ async function updatePassword() {
         showToast('Password must be at least 8 characters.');
         return;
     }
+    if (!/[A-Z]/.test(nw) || !/[0-9]/.test(nw)) {
+        showToast('Password must contain at least one uppercase letter and one number.');
+        return;
+    }
 
     try {
         await apiFetch('user.php', {action: 'changePassword', currentPassword: current, newPassword: nw}, 'POST');
@@ -304,5 +374,148 @@ async function updatePassword() {
         showToast('Password updated successfully.');
     } catch (error) {
         showToast(error.message);
+    }
+}
+
+/* ── LEAFLET MAP ───────────────────────────────────────────── */
+function initComplaintMap() {
+    const container = document.getElementById('complaint-map');
+    if (!container) return;
+    if (complaintMap) {
+        complaintMap.invalidateSize();
+        return;
+    }
+    const defaultLat = 14.6760, defaultLng = 121.0437;
+    complaintMap = L.map('complaint-map').setView([defaultLat, defaultLng], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+    }).addTo(complaintMap);
+    complaintMap.on('click', function (e) {
+        pinnedLat = e.latlng.lat;
+        pinnedLng = e.latlng.lng;
+        if (complaintMapMarker) {
+            complaintMapMarker.setLatLng(e.latlng);
+        } else {
+            complaintMapMarker = L.marker(e.latlng).addTo(complaintMap);
+        }
+        const label = document.getElementById('pin-coords-label');
+        if (label) label.textContent = `📍 Pinned: ${pinnedLat.toFixed(5)}, ${pinnedLng.toFixed(5)}`;
+    });
+}
+
+function useGpsLocation() {
+    if (!navigator.geolocation) {
+        showToast('GPS is not available in this browser.');
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(pos => {
+        pinnedLat = pos.coords.latitude;
+        pinnedLng = pos.coords.longitude;
+        const latlng = L.latLng(pinnedLat, pinnedLng);
+        if (!complaintMap) initComplaintMap();
+        complaintMap.setView(latlng, 16);
+        if (complaintMapMarker) {
+            complaintMapMarker.setLatLng(latlng);
+        } else {
+            complaintMapMarker = L.marker(latlng).addTo(complaintMap);
+        }
+        const label = document.getElementById('pin-coords-label');
+        if (label) label.textContent = `📍 GPS location: ${pinnedLat.toFixed(5)}, ${pinnedLng.toFixed(5)}`;
+    }, () => {
+        showToast('Could not retrieve GPS location. Please pin manually on the map.');
+    });
+}
+
+/* ── TIMELINE (API-backed, overrides data.js version) ──────── */
+const _tlRatings = {};
+
+async function showTimeline(complaintId) {
+    const c = MY_COMPLAINTS.find(x => x.id === complaintId);
+    if (!c) { showToast('Complaint not found.'); return; }
+
+    let timeline = [];
+    try {
+        const resp = await apiFetch('complaints.php', {action: 'timeline', id: complaintId});
+        timeline = resp.timeline || [];
+    } catch (err) {
+        showToast('Could not load timeline: ' + err.message);
+        return;
+    }
+
+    const statusLabels = {
+        submitted: 'Submitted', verified: 'Verified', assigned: 'Assigned',
+        in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed',
+        cancelled: 'Cancelled', rejected: 'Rejected',
+    };
+
+    const stagesHtml = timeline.length
+        ? timeline.map(s => {
+            const isNeg = s.status === 'cancelled' || s.status === 'rejected';
+            return `
+              <div class="timeline-item">
+                <div class="tl-dot ${isNeg ? 'rejected' : 'done'}">${isNeg ? '✕' : '✓'}</div>
+                <div class="tl-content">
+                  <div class="tl-label">${safeText(statusLabels[s.status] || s.status)}</div>
+                  <div class="tl-time">${formatDateTime(s.time)}</div>
+                  ${s.remarks ? `<div class="tl-note">${safeText(s.remarks)}</div>` : ''}
+                </div>
+              </div>`;
+        }).join('')
+        : `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">No timeline data yet</div></div>`;
+
+    const isRatable = ['closed', 'resolved'].includes(c.status);
+    const safeId = safeText(complaintId);
+    const ratingHtml = isRatable ? `
+      <div class="rating-section">
+        <div class="section-title">Rate this Service</div>
+        <div class="star-row" id="star-row-${safeId}">
+          ${[1,2,3,4,5].map(n => `<span class="star" onclick="setTimelineRating(${n},'${safeId}')" style="cursor:pointer">★</span>`).join('')}
+        </div>
+        <textarea class="form-input" id="rating-comment-${safeId}" rows="2" placeholder="Optional comment…" style="margin-top:10px"></textarea>
+        <div style="text-align:right;margin-top:10px">
+          <button class="btn-primary btn-sm" onclick="submitTimelineRating('${safeId}')">Submit Rating</button>
+        </div>
+      </div>` : '';
+
+    openModal(`
+      <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+          <div class="modal-head">
+            <div>
+              <div class="modal-title">${safeText(c.id)}</div>
+              <div class="modal-subtitle">${safeText(c.cat)} · Brgy. ${safeText(c.brgy)}</div>
+            </div>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="badge-row">${statusBadge(c.status)} ${priorityBadge(c.priority)}</div>
+            <div class="section-title" style="margin-bottom:16px">Transparency Timeline</div>
+            <div class="timeline">${stagesHtml}</div>
+            ${ratingHtml}
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal()">Close</button>
+          </div>
+        </div>
+      </div>`);
+}
+
+function setTimelineRating(n, complaintId) {
+    _tlRatings[complaintId] = n;
+    const row = document.getElementById('star-row-' + complaintId);
+    if (row) row.querySelectorAll('.star').forEach((s, i) => s.classList.toggle('filled', i < n));
+}
+
+async function submitTimelineRating(complaintId) {
+    const rating = _tlRatings[complaintId] || 0;
+    if (!rating) { showToast('Please select a star rating first.'); return; }
+    const comment = document.getElementById('rating-comment-' + complaintId)?.value.trim() || '';
+    try {
+        await apiFetch('complaints.php', {action: 'rate', id: complaintId, rating, comment}, 'POST');
+        showToast('Rating submitted. Thank you!');
+        closeModal();
+    } catch (err) {
+        showToast(err.message);
     }
 }

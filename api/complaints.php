@@ -19,7 +19,7 @@ function getBarangayCoordinates(string $barangay): array
 
 if ($action === 'list') {
     if ($user['role'] === 'regular') {
-        $stmt = $db->prepare('SELECT tracking_number AS id, incident_category AS cat, incident_barangay AS brgy, urgency_priority AS priority, current_progress_status AS status, submission_timestamp AS date, is_reported_anonymously AS anon, incident_description AS desc, map_latitude AS lat, map_longitude AS lng FROM traffic_complaints_master WHERE citizen_reporter_id = :id ORDER BY submission_timestamp DESC');
+        $stmt = $db->prepare('SELECT tracking_number AS id, incident_category AS cat, incident_barangay AS brgy, urgency_priority AS priority, current_progress_status AS status, submission_timestamp AS date, is_reported_anonymously AS anon, incident_description AS description, map_latitude AS lat, map_longitude AS lng FROM traffic_complaints_master WHERE citizen_reporter_id = :id ORDER BY submission_timestamp DESC');
         $stmt->execute([':id' => $user['id']]);
         $complaints = $stmt->fetchAll();
         successResponse(['complaints' => $complaints]);
@@ -54,7 +54,13 @@ if ($action === 'submit') {
         errorResponse('All complaint fields are required, and description must be at least 50 characters.');
     }
 
-    $coords = getBarangayCoordinates($barangay);
+    $pinnedLat = isset($data['lat']) && is_numeric($data['lat']) ? (float)$data['lat'] : null;
+    $pinnedLng = isset($data['lng']) && is_numeric($data['lng']) ? (float)$data['lng'] : null;
+    $fallback = getBarangayCoordinates($barangay);
+    $coords = [
+        'lat' => $pinnedLat ?? $fallback['lat'],
+        'lng' => $pinnedLng ?? $fallback['lng'],
+    ];
     $trackingNumber = buildTrackingNumber($db);
     $dateField = date('Y-m-d H:i:s', strtotime($date . ' ' . $time));
 
