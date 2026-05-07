@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../base.css" />
-  <link rel="stylesheet" href="civilian.css" />
+  <link rel="stylesheet" href="../base.css?v=20260508a" />
+  <link rel="stylesheet" href="civilian.css?v=20260508a" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 </head>
 <body>
@@ -142,17 +142,27 @@
             </div>
           </div>
           <div class="form-group">
-            <label for="f-address">Incident Address *</label>
-            <input id="f-address" class="form-input" type="text" placeholder="e.g. 123 Main Street, near XYZ store" />
-            <div style="font-size:11px;color:var(--mist);margin-top:4px">Address in the selected barangay</div>
+            <label>PIN INCIDENT LOCATION ON MAP *</label>
+            <div class="map-wrap">
+              <div id="complaint-map" class="complaint-map"></div>
+              <div class="map-search-overlay">
+                <input id="map-search-input" class="form-input map-search-input" type="text" placeholder="9 Latundan St" onkeydown="if(event.key==='Enter'){event.preventDefault();searchIncidentLocation();}" />
+                <button class="btn-secondary btn-sm map-search-btn" type="button" onclick="searchIncidentLocation()">🔎 SEARCH</button>
+              </div>
+            </div>
+            <div class="map-meta-row">
+              <span class="map-pin-label" id="pin-coords-label">📍 Pinned: —</span>
+              <div class="map-actions-row">
+                <button class="btn-secondary btn-sm" type="button" onclick="zoomComplaintMapIn()">+</button>
+                <button class="btn-secondary btn-sm" type="button" onclick="zoomComplaintMapOut()">-</button>
+                <button class="btn-secondary btn-sm" type="button" onclick="useGpsLocation()">📡 USE MY GPS</button>
+                <button class="btn-secondary btn-sm" type="button" onclick="clearPinnedLocation()">✕ CLEAR</button>
+              </div>
+            </div>
           </div>
           <div class="form-group">
-            <label>Pin Incident Location on Map *</label>
-            <div id="complaint-map" style="height:260px;margin-top:6px;border-radius:8px;border:1px solid var(--border)"></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-              <span style="font-size:12px;color:var(--mist)" id="pin-coords-label">Click the map to pin the exact incident location.</span>
-              <button class="btn-secondary btn-sm" type="button" onclick="useGpsLocation()">📍 Use My GPS Location</button>
-            </div>
+            <label for="f-address">Specific Address / Landmark *</label>
+            <input id="f-address" class="form-input" type="text" placeholder="Latundan Street, Talanay, Batasan Hills" />
           </div>
           <div class="btn-row">
             <button class="btn-secondary" onclick="setActivePage('dash')">Cancel</button>
@@ -343,8 +353,8 @@
 <div id="modal-container"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="../data.js?v=20260507"></script>
-<script src="../api.js?v=20260508"></script>
-<script src="civilian.backend.js?v=20260508"></script>
+<script src="../data.js?v=20260508a"></script>
+<script src="../api.js?v=20260508a"></script>
+<script src="civilian.backend.js?v=20260508a"></script>
 </body>
 </html>

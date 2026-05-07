@@ -19,9 +19,9 @@ const roleConfig = {
   },
   regular: {
     kicker: 'CITIZEN ACCESS',
-    idLabel: 'USERNAME OR EMAIL',
+    idLabel: 'USERNAME OR EMAIL ADDRESS',
     idPlaceholder: 'e.g. rikka',
-    requiredMessage: 'Username or email and password are required.',
+    requiredMessage: 'Username or email address and password are required.',
   },
 };
 
@@ -52,7 +52,7 @@ function togglePasswordVisibility() {
 
 function openForgotModal(event) {
   event.preventDefault();
-  if (selectedRole === 'dispatch') {
+  if (selectedRole === 'dispatch' || selectedRole === 'regular') {
     const notif = document.getElementById('forgot-inline-notif');
     if (notif) notif.classList.remove('hidden');
     return;

@@ -7,19 +7,37 @@ let suOpenDropdown = null;
 let suModalType = null;
 const signupRole = document.body?.dataset?.role || 'dispatch';
 
-const LEGAL_TEXT = {
-  terms: {
-    head: 'TERMS AND CONDITIONS',
-    body: 'By creating an account, you agree to use TRAPICO only for official traffic operations and to provide accurate information. False reports, unauthorized access, or misuse of this system may result in account suspension and legal action.',
+const LEGAL_TEXT_BY_ROLE = {
+  regular: {
+    terms: {
+      head: 'TERMS AND CONDITIONS',
+      body: 'Welcome to TRAPICO. By using this system, you agree to provide accurate traffic reports. Misuse of the platform or filing false reports may lead to account suspension and legal action under Quezon City traffic ordinances.',
+    },
+    privacy: {
+      head: 'PRIVACY POLICY',
+      body: 'We value your privacy. TRAPICO collects officer identification and location data strictly for incident validation. Your personal information is encrypted and will not be shared with third parties without your explicit consent.',
+    },
   },
-  privacy: {
-    head: 'PRIVACY POLICY',
-    body: 'TRAPICO collects your account, contact, and assignment data strictly for dispatch operations. Your information is stored securely and processed only for system functionality and authorized government use.',
+  dispatch: {
+    terms: {
+      head: 'TERMS AND CONDITIONS',
+      body: 'By creating an account, you agree to use TRAPICO only for official traffic operations and to provide accurate information. False reports, unauthorized access, or misuse of this system may result in account suspension and legal action.',
+    },
+    privacy: {
+      head: 'PRIVACY POLICY',
+      body: 'TRAPICO collects your account, contact, and assignment data strictly for dispatch operations. Your information is stored securely and processed only for system functionality and authorized government use.',
+    },
   },
 };
 
+const LEGAL_TEXT = LEGAL_TEXT_BY_ROLE[signupRole] || LEGAL_TEXT_BY_ROLE.dispatch;
+
 function hasEnhancedDispatchFields() {
-  return !!document.getElementById('dis-firstname');
+  return signupRole === 'dispatch' && !!document.getElementById('dis-employeeid');
+}
+
+function hasEnhancedCitizenFields() {
+  return signupRole === 'regular' && !!document.getElementById('dis-firstname') && !!document.getElementById('dis-email');
 }
 
 function toggleSuPassword(inputId, toggleId) {
@@ -153,6 +171,7 @@ function clearError() {
 
 function isFormReady() {
   const enhancedDispatch = hasEnhancedDispatchFields();
+  const enhancedCitizen = hasEnhancedCitizenFields();
   const username = getVal('dis-username');
   const phone = getVal('dis-phone');
   const barangay = getBarangayValue();
@@ -161,7 +180,7 @@ function isFormReady() {
   const terms = document.getElementById('dis-terms').checked;
   const privacy = document.getElementById('dis-privacy').checked;
 
-  if (!enhancedDispatch) {
+  if (!enhancedDispatch && !enhancedCitizen) {
     return !!(username && phone && barangay && password && confirm && terms && privacy);
   }
 
@@ -171,6 +190,21 @@ function isFormReady() {
   const badgeId = getVal('dis-badgeid');
   const department = getVal('dis-department');
   const email = getVal('dis-email');
+
+  if (enhancedCitizen) {
+    return !!(
+      firstName &&
+      lastName &&
+      username &&
+      email &&
+      phone &&
+      barangay &&
+      password &&
+      confirm &&
+      terms &&
+      privacy
+    );
+  }
 
   return !!(
     firstName &&
@@ -202,6 +236,7 @@ async function submitDispatchSignup() {
   clearError();
 
   const enhancedDispatch = hasEnhancedDispatchFields();
+  const enhancedCitizen = hasEnhancedCitizenFields();
 
   const firstName = getVal('dis-firstname');
   const lastName = getVal('dis-lastname');
@@ -221,6 +256,13 @@ async function submitDispatchSignup() {
     if (!employeeId) return showError('Please enter your employee ID.');
     if (!badgeId) return showError('Please enter your badge ID.');
     if (!department) return showError('Please enter your department.');
+    if (!email) return showError('Please enter your email address.');
+    if (!isValidEmail(email)) return showError('Please enter a valid email address.');
+  }
+
+  if (enhancedCitizen) {
+    if (!firstName) return showError('Please enter your first name.');
+    if (!lastName) return showError('Please enter your last name.');
     if (!email) return showError('Please enter your email address.');
     if (!isValidEmail(email)) return showError('Please enter a valid email address.');
   }
@@ -253,6 +295,10 @@ async function submitDispatchSignup() {
       home_barangay: barangay,
       password,
     }, 'POST');
+
+    if (enhancedCitizen) {
+      sessionStorage.setItem('citizen_signup_notice', '1');
+    }
 
     const signInRoutes = {
       dispatch: 'dispatch-login.html?registered=1',

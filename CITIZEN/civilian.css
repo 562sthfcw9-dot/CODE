@@ -76,6 +76,62 @@
   animation: fadeIn 0.2s ease;
 }
 
+.map-wrap {
+  position: relative;
+  margin-top: 6px;
+}
+
+.complaint-map {
+  height: 260px;
+  border-radius: 0;
+  border: 1px solid var(--border);
+}
+
+.map-search-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+  z-index: 600;
+}
+
+.map-search-input {
+  flex: 1;
+  height: 30px;
+  border-radius: 2px;
+  background: #dde6f5;
+}
+
+.map-search-btn {
+  height: 30px;
+  min-width: 98px;
+  border-radius: 2px;
+  background: #ffffff;
+  color: #111111;
+  border: 1px solid #c9cfd7;
+  letter-spacing: 0.06em;
+}
+
+.map-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.map-pin-label {
+  font-size: 12px;
+  color: #26a269;
+}
+
+.map-actions-row {
+  display: flex;
+  gap: 4px;
+}
+
 /* ── RESPONSIVE ────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .profile-grid { grid-template-columns: 1fr; }

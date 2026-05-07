@@ -161,6 +161,14 @@ function isDispatchAuthPage() {
     return looksLikeDispatchAuthPath || (bodyRole === 'dispatch' && isAuthPage());
 }
 
+function isCitizenAuthPage() {
+    const path = window.location.pathname || '';
+    const bodyRole = (document.body?.dataset?.role || '').toLowerCase();
+    const looksLikeCitizenAuthPath = /citizen-(?:login|signup)\.html/i.test(path)
+        || /citizen-(?:login|signup)/i.test(path);
+    return looksLikeCitizenAuthPath || (bodyRole === 'regular' && isAuthPage());
+}
+
 function removeExistingApiHealthCheckUI() {
     const knownWrap = document.getElementById('api-health-check-wrap');
     if (knownWrap) knownWrap.remove();
@@ -190,7 +198,7 @@ function showHealthMessage(el, message, isError) {
 
 function addApiHealthCheckUI() {
     if (!isAuthPage()) return;
-    if (isDispatchAuthPage()) {
+    if (isDispatchAuthPage() || isCitizenAuthPage()) {
         removeExistingApiHealthCheckUI();
         return;
     }
@@ -281,7 +289,7 @@ function addApiHealthCheckUI() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    if (isDispatchAuthPage()) {
+    if (isDispatchAuthPage() || isCitizenAuthPage()) {
         removeExistingApiHealthCheckUI();
         return;
     }

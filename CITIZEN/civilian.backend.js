@@ -16,6 +16,60 @@ let complaintMapMarker = null;
 let pinnedLat = null;
 let pinnedLng = null;
 
+function setPinnedLocation(lat, lng, zoom = 17, prefix = 'Pinned') {
+    pinnedLat = Number(lat);
+    pinnedLng = Number(lng);
+    if (!Number.isFinite(pinnedLat) || !Number.isFinite(pinnedLng)) return;
+
+    const latlng = L.latLng(pinnedLat, pinnedLng);
+    if (!complaintMap) initComplaintMap();
+
+    if (complaintMapMarker) {
+        complaintMapMarker.setLatLng(latlng);
+    } else {
+        complaintMapMarker = L.marker(latlng).addTo(complaintMap);
+    }
+
+    complaintMap.setView(latlng, zoom);
+    const label = document.getElementById('pin-coords-label');
+    if (label) label.textContent = `📍 ${prefix}: ${pinnedLat.toFixed(5)}, ${pinnedLng.toFixed(5)}`;
+}
+
+function buildAddressFromSearchResult(result, fallback = '') {
+    const addr = result?.address || {};
+    const parts = [
+        addr.house_number ? `${addr.house_number} ${addr.road || ''}`.trim() : (addr.road || ''),
+        addr.suburb || addr.neighbourhood || addr.quarter || '',
+        addr.city_district || addr.city || 'Quezon City',
+    ].map(v => String(v || '').trim()).filter(Boolean);
+
+    if (parts.length) return parts.join(', ');
+    return String(result?.display_name || fallback || '').trim();
+}
+
+async function fillAddressFromReverseGeocode(lat, lng) {
+    const input = document.getElementById('f-address');
+    if (!input) return;
+
+    try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(String(lat))}&lon=${encodeURIComponent(String(lng))}&addressdetails=1`;
+        const res = await fetch(url, {headers: {'Accept': 'application/json'}});
+        if (!res.ok) return;
+        const data = await res.json();
+        const addr = data?.address || {};
+        const parts = [
+            addr.road || addr.pedestrian || addr.footway || addr.path || addr.neighbourhood || '',
+            addr.suburb || addr.neighbourhood || addr.village || '',
+            addr.quarter || addr.city_district || '',
+            addr.city || 'Quezon City',
+        ].map(x => String(x || '').trim()).filter(Boolean);
+        const text = parts.length ? parts.join(', ') : String(data?.display_name || '').trim();
+        if (text) input.value = text;
+    } catch (_) {
+        /* best effort */
+    }
+}
+
 window.addEventListener('DOMContentLoaded', initCivilian);
 
 async function initCivilian() {
@@ -633,16 +687,84 @@ function initComplaintMap() {
         maxZoom: 19,
     }).addTo(complaintMap);
     complaintMap.on('click', function (e) {
-        pinnedLat = e.latlng.lat;
-        pinnedLng = e.latlng.lng;
-        if (complaintMapMarker) {
-            complaintMapMarker.setLatLng(e.latlng);
-        } else {
-            complaintMapMarker = L.marker(e.latlng).addTo(complaintMap);
-        }
-        const label = document.getElementById('pin-coords-label');
-        if (label) label.textContent = `📍 Pinned: ${pinnedLat.toFixed(5)}, ${pinnedLng.toFixed(5)}`;
+        setPinnedLocation(e.latlng.lat, e.latlng.lng, complaintMap.getZoom(), 'Pinned');
+        fillAddressFromReverseGeocode(e.latlng.lat, e.latlng.lng);
     });
+}
+
+async function searchIncidentLocation() {
+    const input = document.getElementById('map-search-input');
+    const brgy = document.getElementById('f-brgy')?.value || '';
+    if (!input) return;
+
+    const raw = input.value.trim();
+    if (!raw) {
+        showToast('Please enter a place to search.');
+        return;
+    }
+
+    const queries = [
+        `${raw}, ${brgy}, Quezon City`,
+        `${raw}, Quezon City`,
+        `${raw}, Philippines`,
+    ];
+
+    const qcViewBox = '120.93,14.80,121.15,14.57';
+
+    try {
+        let found = null;
+        for (const q of queries) {
+            const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&countrycodes=ph&bounded=1&viewbox=${qcViewBox}&limit=5&q=${encodeURIComponent(q)}`;
+            const res = await fetch(url, {headers: {'Accept': 'application/json'}});
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+                const qcMatch = data.find(item => String(item.display_name || '').toLowerCase().includes('quezon city'));
+                found = qcMatch || data[0];
+                break;
+            }
+        }
+
+        if (!found) {
+            showToast('Location not found.');
+            return;
+        }
+
+        const lat = Number(found.lat);
+        const lng = Number(found.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            showToast('Invalid location result.');
+            return;
+        }
+
+        setPinnedLocation(lat, lng, 17, 'Pinned');
+        const addrInput = document.getElementById('f-address');
+        if (addrInput) addrInput.value = buildAddressFromSearchResult(found, raw);
+        showToast('📍 Location found and pinned!');
+    } catch (_) {
+        showToast('Search failed. Please try again.');
+    }
+}
+
+function zoomComplaintMapIn() {
+    if (!complaintMap) initComplaintMap();
+    complaintMap.zoomIn();
+}
+
+function zoomComplaintMapOut() {
+    if (!complaintMap) initComplaintMap();
+    complaintMap.zoomOut();
+}
+
+function clearPinnedLocation() {
+    pinnedLat = null;
+    pinnedLng = null;
+    if (complaintMapMarker) {
+        complaintMapMarker.remove();
+        complaintMapMarker = null;
+    }
+    const label = document.getElementById('pin-coords-label');
+    if (label) label.textContent = '📍 Pinned: —';
 }
 
 function useGpsLocation() {
@@ -651,18 +773,8 @@ function useGpsLocation() {
         return;
     }
     navigator.geolocation.getCurrentPosition(pos => {
-        pinnedLat = pos.coords.latitude;
-        pinnedLng = pos.coords.longitude;
-        const latlng = L.latLng(pinnedLat, pinnedLng);
-        if (!complaintMap) initComplaintMap();
-        complaintMap.setView(latlng, 16);
-        if (complaintMapMarker) {
-            complaintMapMarker.setLatLng(latlng);
-        } else {
-            complaintMapMarker = L.marker(latlng).addTo(complaintMap);
-        }
-        const label = document.getElementById('pin-coords-label');
-        if (label) label.textContent = `📍 GPS location: ${pinnedLat.toFixed(5)}, ${pinnedLng.toFixed(5)}`;
+        setPinnedLocation(pos.coords.latitude, pos.coords.longitude, 17, 'Pinned');
+        fillAddressFromReverseGeocode(pos.coords.latitude, pos.coords.longitude);
     }, () => {
         showToast('Could not retrieve GPS location. Please pin manually on the map.');
     });

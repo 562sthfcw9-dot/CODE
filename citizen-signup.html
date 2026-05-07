@@ -43,66 +43,72 @@
       <form id="dispatch-signup" class="su-form" autocomplete="off" onsubmit="return false" novalidate>
         <div class="su-grid">
           <div class="su-field">
+            <label class="su-label" for="dis-firstname">FIRST NAME *</label>
+            <input id="dis-firstname" class="su-input" type="text" placeholder="Francien" autocomplete="given-name" />
+          </div>
+
+          <div class="su-field">
+            <label class="su-label" for="dis-lastname">LAST NAME *</label>
+            <input id="dis-lastname" class="su-input" type="text" placeholder="Navigas" autocomplete="family-name" />
+          </div>
+
+          <div class="su-field su-col-full">
             <label class="su-label" for="dis-username">USERNAME *</label>
-            <input id="dis-username" class="su-input" type="text" placeholder="jdelacruz" autocomplete="username" />
+            <input id="dis-username" class="su-input" type="text" placeholder="cien1221" autocomplete="username" />
           </div>
 
-          <div class="su-field">
-            <label class="su-label" for="dis-phone">PHONE *</label>
-            <input id="dis-phone" class="su-input" type="tel" placeholder="+63 9..." autocomplete="tel" />
+          <div class="su-field su-col-full">
+            <label class="su-label" for="dis-email">EMAIL ADDRESS *</label>
+            <input id="dis-email" class="su-input" type="email" placeholder="navigasfrancien@gmail.com" autocomplete="email" />
           </div>
 
-          <div class="su-field">
-            <label class="su-label">BARANGAY *</label>
-            <div class="su-select-wrap" id="dis-brgy-wrap">
-              <button class="su-select-btn" id="dis-brgy-btn" type="button" onclick="toggleDropdown('dis-brgy')" aria-haspopup="listbox" aria-expanded="false">
-                <span class="su-select-val" id="dis-brgy-val">-- Select --</span>
-                <span class="su-select-arrow" aria-hidden="true">▾</span>
-              </button>
-              <ul class="su-select-list hidden" id="dis-brgy-list" role="listbox">
-                <li class="su-option su-option-disabled" aria-disabled="true">-- Select --</li>
-                <li class="su-option" role="option" onclick="selectOption('dis-brgy','Commonwealth')">Commonwealth</li>
-                <li class="su-option" role="option" onclick="selectOption('dis-brgy','Batasan Hills')">Batasan Hills</li>
-                <li class="su-option" role="option" onclick="selectOption('dis-brgy','Central')">Central</li>
-                <li class="su-option" role="option" onclick="selectOption('dis-brgy','Sto. Cristo')">Sto. Cristo</li>
-              </ul>
-              <input type="hidden" id="dis-brgy-input" name="barangay" />
-            </div>
+          <div class="su-field su-col-full">
+            <label class="su-label" for="dis-phone">PHONE NUMBER *</label>
+            <input id="dis-phone" class="su-input" type="tel" placeholder="+639815775211" autocomplete="tel" />
           </div>
 
-          <div class="su-field">
+          <div class="su-field su-col-full">
+            <label class="su-label" for="dis-brgy">BARANGAY *</label>
+            <select id="dis-brgy" class="su-input su-select-native" name="barangay">
+              <option value="">-- Select --</option>
+              <option value="Commonwealth">Commonwealth</option>
+              <option value="Batasan Hills">Batasan Hills</option>
+              <option value="Central">Central</option>
+              <option value="Sto. Cristo">Sto. Cristo</option>
+            </select>
+          </div>
+
+          <div class="su-field su-col-full">
             <label class="su-label" for="dis-password">PASSWORD *</label>
             <div class="su-pw-wrap">
-              <input id="dis-password" class="su-input su-pw-input" type="password" placeholder="Min. 8 chars, 1 uppercase," autocomplete="new-password" />
-              <button class="su-pw-toggle" type="button" id="dis-pw-toggle" onclick="toggleSuPassword('dis-password','dis-pw-toggle')" aria-label="Show password">◔</button>
+              <input id="dis-password" class="su-input su-pw-input" type="password" placeholder="Password123" autocomplete="new-password" />
+              <button class="su-pw-toggle" type="button" id="dis-pw-toggle" onclick="toggleSuPassword('dis-password','dis-pw-toggle')" aria-label="Show password">
+                <span class="su-eye-icon" aria-hidden="true"></span>
+              </button>
             </div>
           </div>
 
-          <div class="su-field">
-            <label class="su-label" for="dis-confirm">CONFIRM *</label>
-            <div class="su-pw-wrap">
-              <input id="dis-confirm" class="su-input su-pw-input" type="password" placeholder="Confirm password" autocomplete="new-password" />
-              <button class="su-pw-toggle" type="button" id="dis-confirm-toggle" onclick="toggleSuPassword('dis-confirm','dis-confirm-toggle')" aria-label="Show confirm password">◔</button>
-            </div>
+          <div class="su-field su-col-full">
+            <label class="su-label" for="dis-confirm">CONFIRM PASSWORD *</label>
+            <input id="dis-confirm" class="su-input" type="password" placeholder="••••••••••" autocomplete="new-password" />
           </div>
         </div>
 
-        <div class="su-legal su-legal-inline">
+        <div class="su-legal">
           <label class="su-check-row">
-            <input type="checkbox" id="dis-terms" class="su-checkbox" checked onchange="updateSubmitState()" />
-            <span class="su-check-label"><button type="button" class="su-legal-link" onclick="openLegalModal('terms')">TERMS</button></span>
+            <input type="checkbox" id="dis-terms" class="su-checkbox" onchange="updateSubmitState()" />
+            <span class="su-check-label">I AGREE TO <button type="button" class="su-legal-link" onclick="openLegalModal('terms')">THE TERMS AND CONDITIONS</button></span>
           </label>
 
           <label class="su-check-row">
-            <input type="checkbox" id="dis-privacy" class="su-checkbox" checked onchange="updateSubmitState()" />
-            <span class="su-check-label"><button type="button" class="su-legal-link" onclick="openLegalModal('privacy')">PRIVACY</button></span>
+            <input type="checkbox" id="dis-privacy" class="su-checkbox" onchange="updateSubmitState()" />
+            <span class="su-check-label">I AGREE TO <button type="button" class="su-legal-link" onclick="openLegalModal('privacy')">THE PRIVACY POLICY</button></span>
           </label>
         </div>
 
         <div id="dis-error" class="su-error hidden" role="alert"></div>
 
         <button type="button" class="su-submit su-submit-disabled" id="dis-submit" disabled onclick="submitDispatchSignup()">CREATE ACCOUNT →</button>
-        <a href="citizen-login.html" class="su-submit su-submit-enabled su-switch-btn">GO TO SIGN IN →</a>
       </form>
 
       <div class="su-footer-link">Already have an account? <a href="citizen-login.html">Sign in</a></div>
@@ -123,8 +129,8 @@
   </div>
 </div>
 
-<script src="data.js"></script>
-<script src="api.js"></script>
-<script src="signup.js"></script>
+<script src="data.js?v=20260508"></script>
+<script src="api.js?v=20260508"></script>
+<script src="signup.js?v=20260508"></script>
 </body>
 </html>
