@@ -6,8 +6,11 @@ declare(strict_types=1);
 $httpHost = (string)($_SERVER['HTTP_HOST'] ?? '');
 $serverName = (string)($_SERVER['SERVER_NAME'] ?? '');
 $hostOnly = strtolower((string)preg_replace('/:\\d+$/', '', $httpHost));
+// Treat localhost, 127.0.0.1, and any private LAN IP (192.168.x.x / 10.x.x.x / 172.16-31.x.x) as local
 $isLocalHost = in_array($hostOnly, ['localhost', '127.0.0.1'], true)
-    || in_array(strtolower($serverName), ['localhost', '127.0.0.1'], true);
+    || in_array(strtolower($serverName), ['localhost', '127.0.0.1'], true)
+    || (bool)preg_match('/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/', $hostOnly)
+    || (bool)preg_match('/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/', strtolower($serverName));
 
 if ($isLocalHost) {
     define('DB_HOST', '127.0.0.1');
