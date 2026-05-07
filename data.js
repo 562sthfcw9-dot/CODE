@@ -219,7 +219,7 @@ function setActivePage(pageId) {
     dash:'Dashboard', report:'File a Complaint', complaints:'My Complaints',
     profile:'My Profile', queue:'Complaint Queue', active:'Active Cases',
     officers:'Field Officers', analytics:'Analytics', assigned:'Assigned Cases',
-    job:'Active Job', history:'Case History', performance:'My Performance',
+    job:'Active Job', drafts:'Drafts', history:'Case History', performance:'My Performance',
   };
   const titleEl = document.getElementById('topbar-title');
   if (titleEl) titleEl.textContent = titleMap[pageId] || 'Dashboard';
@@ -270,7 +270,7 @@ function navigateToPage(pageId) {
   const pageMap = {
     dash:'dash', report:'report', complaints:'complaints', profile:'profile',
     queue:'queue', active:'active', officers:'officers', analytics:'analytics',
-    assigned:'assigned', job:'job', history:'history', performance:'performance',
+    assigned:'assigned', job:'job', drafts:'drafts', history:'history', performance:'performance',
   };
 
   if (pageMap[pageId] && typeof setActivePage === 'function' && document.getElementById('nav-' + pageId)) {

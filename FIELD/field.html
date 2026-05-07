@@ -33,6 +33,7 @@
       <div class="nav-item active" id="nav-dash"        onclick="setActivePage('dash')">        <span class="nav-icon">🏠</span> My Dashboard     </div>
       <div class="nav-item"        id="nav-assigned"    onclick="setActivePage('assigned')">    <span class="nav-icon">📋</span> Assigned Cases  <span class="nav-badge" id="badge-assigned">3</span> </div>
       <div class="nav-item"        id="nav-job"         onclick="setActivePage('job')">         <span class="nav-icon">🔴</span> Active Job       </div>
+      <div class="nav-item"        id="nav-drafts"      onclick="setActivePage('drafts')">      <span class="nav-icon">🧾</span> Drafts           </div>
       <div class="nav-item"        id="nav-history"     onclick="setActivePage('history')">     <span class="nav-icon">📁</span> Case History     </div>
       <div class="nav-item"        id="nav-performance" onclick="setActivePage('performance')"> <span class="nav-icon">📊</span> My Performance   </div>
     </nav>
@@ -76,7 +77,7 @@
           <div class="stat-card accent"><div class="stat-card-label">Assigned to Me</div><div class="stat-card-val" id="stat-assigned">3</div><div class="stat-card-sub">Pending action</div></div>
           <div class="stat-card"><div class="stat-card-label">In Progress</div><div class="stat-card-val" id="stat-inprog">1</div><div class="stat-card-sub">Currently on-site</div></div>
           <div class="stat-card green"><div class="stat-card-label">Resolved Today</div><div class="stat-card-val">4</div><div class="stat-card-sub">This shift</div></div>
-          <div class="stat-card blue"><div class="stat-card-label">Efficiency</div><div class="stat-card-val">92<span class="unit">%</span></div><div class="stat-card-sub">This month</div></div>
+          <div class="stat-card blue"><div class="stat-card-label">Efficiency</div><div class="stat-card-val" id="stat-efficiency">0<span class="unit">%</span></div><div class="stat-card-sub">Live performance score</div></div>
         </div>
 
         <div class="alert alert-warn" id="dash-urgent-alert">
@@ -141,10 +142,10 @@
           <div class="checkin-panel">
             <div class="checkin-title">GPS Geofence Check-In</div>
             <div class="checkin-sub">You must be within 150m of the incident site to check in. The system verifies your GPS coordinates.</div>
-            <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+            <div class="checkin-actions" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
               <button class="btn-danger" id="btn-checkin" onclick="attemptCheckin()">📍 Check In (GPS)</button>
-              <button class="btn-success" id="btn-simulate" onclick="simulateArrival()">🧪 Simulate Arrival</button>
               <button class="btn-secondary" onclick="openDispatchChat()">💬 Chat with Dispatch</button>
+              <button class="btn-success" id="btn-simulate" onclick="simulateArrival()">🧪 Simulate Arrival</button>
             </div>
             <div class="checkin-status" id="checkin-status"></div>
           </div>
@@ -205,6 +206,17 @@
               <button class="btn-success" onclick="submitResolution()">Submit Resolution Report ✓</button>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ PAGE: DRAFTS ═══════════════ -->
+      <section id="page-drafts" class="page-section hidden">
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Saved Drafts</span>
+            <span class="section-sub">Resolution reports saved locally</span>
+          </div>
+          <div id="drafts-list"></div>
         </div>
       </section>
 

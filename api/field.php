@@ -10,19 +10,79 @@ $officerUid = (int)($user['user_id'] ?? $officerId);
 
 if ($action === 'assigned') {
     $stmt = $db->prepare(
-        'SELECT a.assignment_id, c.tracking_id AS id, a.response_deadline AS deadline,
+        'SELECT a.assignment_id, c.complaint_id, c.tracking_id AS id, a.response_deadline AS deadline,
                 a.has_checked_in AS checked_in, a.assignment_status,
                 c.dispatch_id AS dispatch_id,
                 c.category AS cat, c.asset_town AS brgy, c.priority, c.status,
                 c.submitted_at AS date, c.description AS `desc`,
-                c.latitude AS lat, c.longitude AS lng, c.is_anonymous AS anon
+                c.latitude AS lat, c.longitude AS lng, c.is_anonymous AS anon,
+                u.full_name AS reporter
          FROM Assignments a
          JOIN Complaints c ON c.complaint_id = a.complaint_id
+         LEFT JOIN Users u ON u.user_id = c.user_id
          WHERE a.field_officer_id = :oid AND a.assignment_status IN ("pending","in_progress")
          ORDER BY a.assigned_at DESC'
     );
     $stmt->execute([':oid' => $officerId]);
     successResponse(['assignments' => $stmt->fetchAll()]);
+}
+
+if ($action === 'updateStatus') {
+    $assignmentId = intval($data['assignment_id'] ?? 0);
+    $newStatus = trim((string)($data['status'] ?? ''));
+    $allowedStatuses = ['submitted', 'verified', 'assigned', 'in_progress', 'resolved', 'closed'];
+
+    if ($assignmentId <= 0 || $newStatus === '') {
+        errorResponse('Assignment ID and status are required.');
+    }
+    if (!in_array($newStatus, $allowedStatuses, true)) {
+        errorResponse('Invalid status selected.');
+    }
+
+    $stmt = $db->prepare(
+        'SELECT a.assignment_id, a.complaint_id
+         FROM Assignments a
+         WHERE a.assignment_id = :aid AND a.field_officer_id = :oid'
+    );
+    $stmt->execute([':aid' => $assignmentId, ':oid' => $officerId]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        errorResponse('Assignment not found.');
+    }
+
+    $assignmentStatus = 'pending';
+    if ($newStatus === 'in_progress') {
+        $assignmentStatus = 'in_progress';
+    } elseif ($newStatus === 'resolved' || $newStatus === 'closed') {
+        $assignmentStatus = 'completed';
+    }
+
+    $db->prepare('UPDATE Complaints SET status = :status WHERE complaint_id = :cid')
+       ->execute([':status' => $newStatus, ':cid' => $row['complaint_id']]);
+
+    if ($assignmentStatus === 'completed') {
+        $db->prepare('UPDATE Assignments SET assignment_status = :status, completed_at = NOW() WHERE assignment_id = :aid')
+           ->execute([':status' => $assignmentStatus, ':aid' => $assignmentId]);
+        $db->prepare("UPDATE Field_officers SET is_available = 'available' WHERE officer_id = :oid")
+           ->execute([':oid' => $officerId]);
+    } else {
+        $db->prepare('UPDATE Assignments SET assignment_status = :status WHERE assignment_id = :aid')
+           ->execute([':status' => $assignmentStatus, ':aid' => $assignmentId]);
+        if ($assignmentStatus === 'in_progress') {
+            $db->prepare("UPDATE Field_officers SET is_available = 'busy' WHERE officer_id = :oid")
+               ->execute([':oid' => $officerId]);
+        }
+    }
+
+    $db->prepare('INSERT INTO Status_history (complaint_id, changed_by, status, notes) VALUES (:cid, :uid, :status, :notes)')
+       ->execute([
+           ':cid' => $row['complaint_id'],
+           ':uid' => $officerUid,
+           ':status' => $newStatus,
+           ':notes' => 'Field officer updated complaint status from Field module.',
+       ]);
+
+    successResponse(['message' => 'Status updated successfully.']);
 }
 
 if ($action === 'checkin') {
@@ -193,6 +253,14 @@ if ($action === 'performance') {
     $stmt->execute([':oid' => $officerId]);
     $resolved = (int)$stmt->fetchColumn();
 
+    $stmt = $db->prepare('SELECT COUNT(*) FROM Assignments WHERE field_officer_id = :oid AND assignment_status = "failed"');
+    $stmt->execute([':oid' => $officerId]);
+    $failed = (int)$stmt->fetchColumn();
+
+    $stmt = $db->prepare('SELECT COUNT(*) FROM Assignments WHERE field_officer_id = :oid AND assignment_status = "reassigned"');
+    $stmt->execute([':oid' => $officerId]);
+    $reassigned = (int)$stmt->fetchColumn();
+
     $stmt = $db->prepare('SELECT COUNT(*) FROM Assignments WHERE field_officer_id = :oid AND assignment_status IN ("pending","in_progress")');
     $stmt->execute([':oid' => $officerId]);
     $active = (int)$stmt->fetchColumn();
@@ -257,14 +325,25 @@ if ($action === 'performance') {
         ? (int)$arrivalMetrics['slowest_minutes']
         : 0;
     $satisfaction = $avgRating !== null ? round((float)$avgRating, 2) : (float)($metrics['average_user_rating'] ?? 0);
+    $failureRate = $totalAssignments > 0 ? round((($failed + $reassigned) / $totalAssignments) * 100, 2) : 0;
+    $efficiencyScore = round(max(0, min(100,
+        ($closureRate * 0.45) +
+        ($onTimeRate * 0.30) +
+        (($satisfaction * 20) * 0.20) +
+        ((100 - $failureRate) * 0.05)
+    )), 2);
 
     successResponse(['performance' => [
         'total_assignments' => $totalAssignments,
         'resolved'      => $resolved,
+        'failed'        => $failed,
+        'reassigned'    => $reassigned,
         'resolved_this_month' => $resolvedThisMonth,
         'active'        => $active,
         'on_time_rate'  => $onTimeRate,
         'closure_rate'  => $closureRate,
+        'failure_rate'  => $failureRate,
+        'efficiency_score' => $efficiencyScore,
         'avg_response_mins' => $avgResponseMins,
         'fastest_mins'  => $fastestMins,
         'slowest_mins'  => $slowestMins,

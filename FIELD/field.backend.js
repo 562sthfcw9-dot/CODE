@@ -25,6 +25,119 @@ let notificationLastId = 0;
 let notificationInterval = null;
 let detailsMapInstance = null;
 let detailsMapMarker = null;
+let assignedCaseMaps = [];
+let draftAutosaveTimer = null;
+let performanceRefreshInterval = null;
+
+const FIELD_DRAFT_STORE_KEY = 'field_resolution_drafts_v1';
+const FIELD_STATUS_OPTIONS = ['submitted', 'verified', 'assigned', 'in_progress', 'resolved', 'closed'];
+
+function getDraftStore() {
+    try {
+        const raw = localStorage.getItem(FIELD_DRAFT_STORE_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (error) {
+        console.warn('Unable to read draft store:', error.message);
+        return {};
+    }
+}
+
+function saveDraftStore(store) {
+    try {
+        localStorage.setItem(FIELD_DRAFT_STORE_KEY, JSON.stringify(store));
+    } catch (error) {
+        console.warn('Unable to write draft store:', error.message);
+    }
+}
+
+function getAssignmentDraft(assignmentId) {
+    const store = getDraftStore();
+    return store[String(assignmentId)] || null;
+}
+
+function persistAssignmentDraft(assignmentId, payload) {
+    const store = getDraftStore();
+    store[String(assignmentId)] = {
+        ...payload,
+        saved_at: new Date().toISOString(),
+    };
+    saveDraftStore(store);
+    localStorage.setItem(`field_draft_${assignmentId}`, JSON.stringify(payload));
+}
+
+function clearAssignmentDraft(assignmentId) {
+    const store = getDraftStore();
+    delete store[String(assignmentId)];
+    saveDraftStore(store);
+    localStorage.removeItem(`field_draft_${assignmentId}`);
+}
+
+function cleanupAssignedMaps() {
+    assignedCaseMaps.forEach(entry => {
+        if (entry?.map) entry.map.remove();
+    });
+    assignedCaseMaps = [];
+}
+
+function computeEfficiencyScore() {
+    const serverScore = Number(PERFORMANCE_DATA.efficiency_score || 0);
+    if (Number.isFinite(serverScore) && serverScore > 0) {
+        return Math.max(0, Math.min(100, Math.round(serverScore)));
+    }
+
+    const closure = Number(PERFORMANCE_DATA.closure_rate || 0);
+    const onTime = Number(PERFORMANCE_DATA.on_time_rate || 0);
+    const satisfaction = Number(PERFORMANCE_DATA.satisfaction || 0) * 20;
+    const failurePenalty = 100 - Number(PERFORMANCE_DATA.failure_rate || 0);
+
+    const weighted = (closure * 0.45) + (onTime * 0.30) + (satisfaction * 0.20) + (failurePenalty * 0.05);
+    return Math.max(0, Math.min(100, Math.round(weighted)));
+}
+
+function startPerformanceRefresh() {
+    if (performanceRefreshInterval) {
+        clearInterval(performanceRefreshInterval);
+    }
+
+    performanceRefreshInterval = setInterval(async () => {
+        try {
+            await loadPerformance();
+            renderDashboard();
+            renderPerformance();
+        } catch (error) {
+            console.warn('Realtime performance refresh failed:', error.message);
+        }
+    }, 15000);
+}
+
+function getCurrentPositionPromise() {
+    if (!window.isSecureContext) {
+        return Promise.reject(new Error('GPS requires a secure origin. Open this app via https:// or http://localhost.'));
+    }
+    if (!navigator.geolocation) {
+        return Promise.reject(new Error('Geolocation is not supported by your browser.'));
+    }
+
+    return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+            resolve,
+            () => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: false,
+                    timeout: 12000,
+                    maximumAge: 30000,
+                });
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 0,
+            }
+        );
+    });
+}
 
 async function initField() {
     const user = await requireLoginRedirect();
@@ -37,6 +150,7 @@ async function initField() {
     renderActiveJob();
     renderHistory();
     renderPerformance();
+    startPerformanceRefresh();
 }
 
 async function loadAssignedTasks() {
@@ -99,6 +213,11 @@ function renderDashboard() {
     document.getElementById('stat-inprog').textContent = inProgressCount;
     document.getElementById('badge-assigned').textContent = assignedCount;
 
+    const efficiencyEl = document.getElementById('stat-efficiency');
+    if (efficiencyEl) {
+        efficiencyEl.innerHTML = `${computeEfficiencyScore()}<span class="unit">%</span>`;
+    }
+
     const allTasks = ASSIGNMENTS.slice(0, 4);
     const taskList = document.getElementById('dash-task-list');
     if (!taskList) return;
@@ -121,10 +240,23 @@ function renderDashboard() {
       </div>`).join('');
 }
 
+function getReporterName(assignment) {
+    if (assignment.anon) return 'Anonymous';
+    return assignment.reporter ? String(assignment.reporter) : 'Citizen';
+}
+
+function statusOptionsMarkup(currentStatus = '') {
+    return FIELD_STATUS_OPTIONS
+        .map(status => `<option value="${safeText(status)}" ${String(currentStatus) === status ? 'selected' : ''}>${safeText(status.replace('_', ' '))}</option>`)
+        .join('');
+}
+
 function renderAssigned() {
     const list = myAssigned();
     const el = document.getElementById('assigned-list');
     if (!el) return;
+
+    cleanupAssignedMaps();
 
     if (!list.length) {
         el.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">No assigned cases</div><div class="empty-sub">You have no active assignments. Stand by.</div></div>`;
@@ -138,7 +270,7 @@ function renderAssigned() {
                 ? `${lat.toFixed(4)}, ${lng.toFixed(4)}`
                 : 'Location unavailable';
 
-            return `
+                        return `
       <div class="assigned-card">
         <div class="assigned-card-header">
           <div>
@@ -149,7 +281,10 @@ function renderAssigned() {
             </div>
             <div class="assigned-card-name">${safeText(c.cat)} · Barangay ${safeText(c.brgy)}</div>
           </div>
-                    <button class="btn-primary btn-sm" onclick="openJobByAssignment('${safeText(c.assignment_id)}')">▶ Start Job</button>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+                        <button class="btn-secondary btn-sm" onclick="showCaseDetailsMap('${safeText(c.id)}')">Details</button>
+                        <button class="btn-primary btn-sm" onclick="openJobByAssignment('${safeText(c.assignment_id)}')">▶ Start Job</button>
+                    </div>
         </div>
         <div class="assigned-card-body">
           <div>
@@ -158,22 +293,122 @@ function renderAssigned() {
             <div style="margin-top:14px;display:flex;flex-direction:column;gap:4px">
               <div class="assigned-meta-row"><span class="assigned-meta-label">Date/Time</span><span class="assigned-meta-val">${formatDateTime(c.date)}</span></div>
               <div class="assigned-meta-row"><span class="assigned-meta-label">Priority</span><span class="assigned-meta-val">${safeText(c.priority)}</span></div>
-              <div class="assigned-meta-row"><span class="assigned-meta-label">Reporter</span><span class="assigned-meta-val">${c.anon ? 'Anonymous' : safeText(c.user || 'Citizen')}</span></div>
+                            <div class="assigned-meta-row"><span class="assigned-meta-label">Reporter</span><span class="assigned-meta-val">${safeText(getReporterName(c))}</span></div>
+                            <div class="assigned-meta-row"><span class="assigned-meta-label">Status</span><span class="assigned-meta-val" style="text-transform:capitalize">${safeText(String(c.status || '').replace('_', ' '))}</span></div>
+                            <div class="assigned-meta-row" style="padding-top:8px;display:block">
+                                <div class="status-control-row">
+                                    <select class="form-select status-select" id="assigned-status-${safeText(c.assignment_id)}">${statusOptionsMarkup(c.status)}</select>
+                                    <button type="button" class="btn-secondary btn-sm" onclick="applyStatusFromAssigned('${safeText(c.assignment_id)}')">Update</button>
+                                </div>
+                            </div>
             </div>
           </div>
           <div>
-            <div class="map-placeholder" style="height:150px">
-              <div class="map-icon">🗺️</div>
-              <div class="map-label">Navigate to site</div>
+            <div class="assigned-map-shell" style="height:170px;border-radius:8px;border:1px solid var(--border);overflow:hidden;position:relative">
+              <div id="assigned-map-${safeText(c.assignment_id)}" class="assigned-case-map" style="height:100%"></div>
             </div>
-            <div style="margin-top:8px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);font-size:12px;display:flex;align-items:center;gap:6px">
-              <span>📍</span>
-                            <span class="mono">${safeText(coordText)}</span>
+            <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+                            <span id="assigned-map-label-${safeText(c.assignment_id)}" style="font-size:12px;color:var(--mist)">${safeText(coordText)}</span>
+                            <button type="button" class="btn-secondary btn-sm" onclick="centerAssignedMapToGps('${safeText(c.assignment_id)}')">Pin My Location</button>
             </div>
           </div>
         </div>
             </div>`;
         }).join('');
+
+    initAssignedMaps(list);
+}
+
+function initAssignedMaps(assignments) {
+    if (typeof L === 'undefined') return;
+
+    assignments.forEach(assignment => {
+        const mapId = `assigned-map-${assignment.assignment_id}`;
+        const mapEl = document.getElementById(mapId);
+        if (!mapEl) return;
+
+        const lat = Number.parseFloat(assignment.lat);
+        const lng = Number.parseFloat(assignment.lng);
+        const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+        const target = hasCoords ? [lat, lng] : [14.6760, 121.0437];
+
+        const map = L.map(mapId, {zoomControl: false, scrollWheelZoom: false}).setView(target, hasCoords ? 15 : 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19,
+        }).addTo(map);
+
+        if (hasCoords) {
+            const incidentPopup = `
+                <div style="font-weight:700">${safeText(assignment.id || 'Incident')}</div>
+                <div style="font-size:12px;margin-top:4px">${safeText(assignment.cat || '')} · ${safeText(assignment.brgy || '')}</div>
+                <div style="font-size:12px;margin-top:6px;line-height:1.45">${safeText(assignment.desc || 'No description')}</div>
+            `;
+            L.marker(target)
+                .addTo(map)
+                .bindPopup(incidentPopup)
+                .bindTooltip('Incident location', {permanent: true, direction: 'top', offset: [0, -18], className: 'incident-pin-label'});
+        }
+
+        assignedCaseMaps.push({assignmentId: String(assignment.assignment_id), map, officerMarker: null});
+    });
+}
+
+function centerAssignedMapToGps(assignmentId) {
+    const mapId = `assigned-map-${assignmentId}`;
+    const entry = assignedCaseMaps.find(item => item?.map && item.map.getContainer && item.map.getContainer().id === mapId);
+    if (!entry?.map) {
+        showToast('Map is still loading. Please try again.');
+        return;
+    }
+
+    const label = document.getElementById(`assigned-map-label-${assignmentId}`);
+    if (label) label.textContent = 'Detecting your GPS location...';
+
+    getCurrentPositionPromise().then(position => {
+        const point = [position.coords.latitude, position.coords.longitude];
+        if (entry.officerMarker) {
+            entry.officerMarker.setLatLng(point);
+        } else {
+            entry.officerMarker = L.marker(point).addTo(entry.map).bindPopup('Field officer pinned location');
+        }
+        entry.map.setView(point, 16);
+        if (label) label.textContent = `Pinned: ${point[0].toFixed(5)}, ${point[1].toFixed(5)}`;
+        showToast('Your location has been pinned on the map.');
+    }).catch(error => {
+        if (label) label.textContent = 'GPS unavailable on this origin. Use localhost/https.';
+        showToast('Unable to fetch GPS location: ' + (error.message || 'Permission denied.'));
+    });
+}
+
+function getStatusSelectValue(assignmentId) {
+    const selectEl = document.getElementById(`assigned-status-${assignmentId}`) || document.getElementById('active-status-select');
+    return selectEl ? selectEl.value : '';
+}
+
+async function updateAssignmentStatus(assignmentId, nextStatus) {
+    if (!assignmentId || !nextStatus) {
+        showToast('Please select a valid status.');
+        return;
+    }
+
+    try {
+        await apiFetch('field.php', {action: 'updateStatus', assignment_id: assignmentId, status: nextStatus}, 'POST');
+        showToast('Report status updated.');
+        await Promise.all([loadAssignedTasks(), loadHistory(), loadPerformance()]);
+        renderDashboard();
+        renderAssigned();
+        renderActiveJob();
+        renderHistory();
+        renderPerformance();
+    } catch (error) {
+        showToast(error.message || 'Unable to update status.');
+    }
+}
+
+function applyStatusFromAssigned(assignmentId) {
+    const value = getStatusSelectValue(assignmentId);
+    updateAssignmentStatus(assignmentId, value);
 }
 
 function renderActiveJob() {
@@ -210,6 +445,20 @@ function renderActiveJob() {
                     </div>
                 </div>
 
+                                <div class="job-meta-grid">
+                                        <div class="job-meta-cell"><div class="job-meta-k">Description</div><div class="job-meta-v">${safeText(assignment.desc || 'No description')}</div></div>
+                                        <div class="job-meta-cell"><div class="job-meta-k">Date/Time</div><div class="job-meta-v">${formatDateTime(assignment.date)}</div></div>
+                                        <div class="job-meta-cell"><div class="job-meta-k">Priority</div><div class="job-meta-v">${safeText(assignment.priority)}</div></div>
+                                        <div class="job-meta-cell"><div class="job-meta-k">Reporter</div><div class="job-meta-v">${safeText(getReporterName(assignment))}</div></div>
+                                        <div class="job-meta-cell job-status-cell">
+                                            <div class="job-meta-k">Update Report Status</div>
+                                            <div class="status-control-row">
+                                                <select class="form-select status-select" id="active-status-select">${statusOptionsMarkup(assignment.status)}</select>
+                                                <button type="button" class="btn-secondary btn-sm" onclick="updateAssignmentStatus('${safeText(assignment.assignment_id)}', getStatusSelectValue('${safeText(assignment.assignment_id)}'))">Apply</button>
+                                            </div>
+                                        </div>
+                                </div>
+
                 <div class="countdown-box">
                     <div>
                         <div class="countdown-val" id="job-countdown">--:--</div>
@@ -229,17 +478,17 @@ function renderActiveJob() {
                                         <div id="active-job-map" style="height:220px;border-radius:8px;border:1px solid var(--border)"></div>
                                         <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
                                             <span id="active-job-map-label" style="font-size:12px;color:var(--mist)">Loading map…</span>
-                                            <button type="button" class="btn-secondary btn-sm" onclick="centerActiveJobMapToGps()">Use My GPS</button>
+                                            <button type="button" class="btn-secondary btn-sm" onclick="centerActiveJobMapToGps()">Pin My Location</button>
                                         </div>
                 </div>
 
                 <div class="checkin-panel">
                     <div class="checkin-title">GPS Geofence Check-In</div>
                     <div class="checkin-sub">You must be within 150m of the incident site to check in. The system verifies your GPS coordinates.</div>
-                    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+                    <div class="checkin-actions" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
                         <button class="btn-danger" id="btn-checkin" onclick="attemptCheckin()" ${checkedIn ? 'disabled style="opacity:.45"' : ''}>📍 Check In (GPS)</button>
-                        <button class="btn-success" id="btn-simulate" onclick="simulateArrival()" ${checkedIn ? 'disabled style="opacity:.45"' : ''}>🧪 Simulate Arrival</button>
                         <button class="btn-secondary" onclick="openDispatchChat()">💬 Chat with Dispatch</button>
+                        <button class="btn-success" id="btn-simulate" onclick="simulateArrival()" ${checkedIn ? 'disabled style="opacity:.45"' : ''}>🧪 Simulate Arrival</button>
                     </div>
                     <div class="checkin-status ${checkedIn ? 'ok' : ''}" id="checkin-status">${checkedIn ? '✓ Already checked in for this assignment.' : ''}</div>
                 </div>
@@ -304,11 +553,9 @@ function renderActiveJob() {
                 </div>
             </div>`;
 
-            const draftKey = `field_draft_${assignment.assignment_id}`;
             try {
-                const rawDraft = localStorage.getItem(draftKey);
-                if (rawDraft) {
-                    const draft = JSON.parse(rawDraft);
+                const draft = getAssignmentDraft(assignment.assignment_id) || JSON.parse(localStorage.getItem(`field_draft_${assignment.assignment_id}`) || 'null');
+                if (draft) {
                     if (draft.method) document.getElementById('res-method').value = draft.method;
                     if (draft.equipment) document.getElementById('res-equipment').value = draft.equipment;
                     if (draft.desc) document.getElementById('res-desc').value = draft.desc;
@@ -324,6 +571,8 @@ function renderActiveJob() {
                 console.warn('Unable to load draft:', error.message);
             }
 
+        bindDraftAutoSave();
+
         startJobCountdown(assignment.deadline);
         initActiveJobMap(assignment);
         startLiveTracking(checkedIn ? 'busy' : 'available');
@@ -338,14 +587,23 @@ function initActiveJobMap(assignment) {
     const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
     const target = hasCoords ? [lat, lng] : [14.6760, 121.0437];
 
-    activeJobMap = L.map('active-job-map', {zoomControl: false}).setView(target, hasCoords ? 16 : 13);
+    activeJobMap = L.map('active-job-map', {zoomControl: false, scrollWheelZoom: false}).setView(target, hasCoords ? 16 : 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 19,
     }).addTo(activeJobMap);
 
     if (hasCoords) {
-        activeJobIncidentMarker = L.marker(target).addTo(activeJobMap).bindPopup('Incident location').openPopup();
+        const incidentPopup = `
+            <div style="font-weight:700">${safeText(assignment.id || 'Incident')}</div>
+            <div style="font-size:12px;margin-top:4px">${safeText(assignment.cat || '')} · ${safeText(assignment.brgy || '')}</div>
+            <div style="font-size:12px;margin-top:6px;line-height:1.45">${safeText(assignment.desc || 'No description')}</div>
+        `;
+        activeJobIncidentMarker = L.marker(target)
+            .addTo(activeJobMap)
+            .bindPopup(incidentPopup)
+            .bindTooltip('Incident location', {permanent: true, direction: 'top', offset: [0, -18], className: 'incident-pin-label'})
+            .openPopup();
         const label = document.getElementById('active-job-map-label');
         if (label) label.textContent = `Incident: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     }
@@ -354,8 +612,15 @@ function initActiveJobMap(assignment) {
 }
 
 function centerActiveJobMapToGps() {
-    if (!activeJobMap || !navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(pos => {
+    if (!activeJobMap) {
+        showToast('Map is not ready yet.');
+        return;
+    }
+
+    const label = document.getElementById('active-job-map-label');
+    if (label) label.textContent = 'Detecting your GPS location...';
+
+    getCurrentPositionPromise().then(pos => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         const point = [lat, lng];
@@ -363,15 +628,16 @@ function centerActiveJobMapToGps() {
         if (activeJobOfficerMarker) {
             activeJobOfficerMarker.setLatLng(point);
         } else {
-            activeJobOfficerMarker = L.marker(point).addTo(activeJobMap).bindPopup('Your current location');
+            activeJobOfficerMarker = L.marker(point).addTo(activeJobMap).bindPopup('Field officer pinned location');
         }
         activeJobMap.setView(point, 16);
 
-        const label = document.getElementById('active-job-map-label');
-        if (label) label.textContent = `GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-    }, () => {
-        showToast('Unable to fetch GPS location.');
-    }, {enableHighAccuracy: true, timeout: 10000});
+        if (label) label.textContent = `Pinned: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        showToast('Your location has been pinned on the map.');
+    }).catch(error => {
+        if (label) label.textContent = 'GPS unavailable on this origin. Use localhost/https.';
+        showToast('Unable to fetch GPS location: ' + (error.message || 'Permission denied.'));
+    });
 }
 
 function startJobCountdown(deadline) {
@@ -407,12 +673,7 @@ async function attemptCheckin() {
         return;
     }
 
-    if (!navigator.geolocation) {
-        showToast('Geolocation is not supported by your browser.');
-        return;
-    }
-
-    navigator.geolocation.getCurrentPosition(async position => {
+    getCurrentPositionPromise().then(async position => {
         try {
             await apiFetch('field.php', {
                 action: 'checkin',
@@ -428,9 +689,9 @@ async function attemptCheckin() {
         } catch (error) {
             showToast(error.message);
         }
-    }, error => {
-        showToast('GPS error: ' + error.message);
-    }, {enableHighAccuracy: true, timeout: 10000});
+    }).catch(error => {
+        showToast('GPS error: ' + (error.message || 'Unable to fetch your location.'));
+    });
 }
 
 async function simulateArrival() {
@@ -481,7 +742,7 @@ async function submitResolution() {
         }, 'POST');
         showToast('✓ Resolution report submitted. Awaiting Dispatch Officer review.');
         await Promise.all([loadAssignedTasks(), loadHistory(), loadPerformance()]);
-        localStorage.removeItem(`field_draft_${assignment.assignment_id}`);
+        clearAssignmentDraft(assignment.assignment_id);
         activeAssignmentId = null;
         evidenceUploads = {before: null, after: null};
         renderDashboard();
@@ -527,7 +788,6 @@ function saveDraft() {
         return;
     }
 
-    const key = `field_draft_${assignment.assignment_id}`;
     const payload = {
         method: document.getElementById('res-method')?.value || '',
         equipment: document.getElementById('res-equipment')?.value || '',
@@ -537,15 +797,43 @@ function saveDraft() {
         after: evidenceUploads.after || '',
     };
 
-    localStorage.setItem(key, JSON.stringify(payload));
+    persistAssignmentDraft(assignment.assignment_id, payload);
     showToast('Draft saved for this assignment.');
+    renderDrafts();
+    setActivePage('drafts');
+}
+
+function autoSaveDraft() {
+    const assignment = getActiveAssignment();
+    if (!assignment) return;
+
+    if (draftAutosaveTimer) clearTimeout(draftAutosaveTimer);
+    draftAutosaveTimer = setTimeout(() => {
+        const payload = {
+            method: document.getElementById('res-method')?.value || '',
+            equipment: document.getElementById('res-equipment')?.value || '',
+            desc: document.getElementById('res-desc')?.value || '',
+            followup: document.getElementById('res-followup')?.value || '',
+            before: evidenceUploads.before || '',
+            after: evidenceUploads.after || '',
+        };
+        persistAssignmentDraft(assignment.assignment_id, payload);
+    }, 300);
+}
+
+function bindDraftAutoSave() {
+    ['res-method', 'res-equipment', 'res-desc', 'res-followup'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', autoSaveDraft);
+        el.addEventListener('change', autoSaveDraft);
+    });
 }
 
 function startLiveTracking(status = '') {
     stopLiveTracking();
     const push = () => {
-        if (!navigator.geolocation) return;
-        navigator.geolocation.getCurrentPosition(async position => {
+        getCurrentPositionPromise().then(async position => {
             try {
                 await apiFetch('field.php', {
                     action: 'updateGps',
@@ -556,9 +844,9 @@ function startLiveTracking(status = '') {
             } catch (error) {
                 console.warn('Live GPS update failed:', error.message);
             }
-        }, () => {
+        }).catch(() => {
             /* silently ignore live GPS errors to avoid noisy UI */
-        }, {enableHighAccuracy: true, timeout: 10000});
+        });
     };
 
     push();
@@ -586,7 +874,54 @@ window.setActivePage = function(pageId) {
     }
     if (pageId === 'history') renderHistory();
     if (pageId === 'performance') renderPerformance();
+        if (pageId === 'drafts') renderDrafts();
 };
+
+function renderDrafts() {
+        const container = document.getElementById('drafts-list');
+        if (!container) return;
+
+        const store = getDraftStore();
+        const rows = Object.entries(store)
+                .map(([assignmentId, draft]) => {
+                        const assignment = ASSIGNMENTS.find(item => String(item.assignment_id) === String(assignmentId));
+                        const title = assignment?.id || `Assignment #${assignmentId}`;
+                        const cat = assignment?.cat || 'Unassigned category';
+                        const savedAt = draft?.saved_at ? formatDateTime(draft.saved_at) : 'Unknown time';
+                        return {assignmentId, draft, title, cat, savedAt};
+                })
+                .sort((a, b) => new Date(b.draft?.saved_at || 0) - new Date(a.draft?.saved_at || 0));
+
+        if (!rows.length) {
+                container.innerHTML = `<div class="empty-state"><div class="empty-icon">🧾</div><div class="empty-title">No saved drafts</div><div class="empty-sub">Saved resolution drafts will appear here.</div></div>`;
+                return;
+        }
+
+        container.innerHTML = rows.map(row => `
+            <div class="draft-card">
+                <div>
+                    <div class="track-id">${safeText(row.title)}</div>
+                    <div class="draft-sub">${safeText(row.cat)} · Last saved: ${safeText(row.savedAt)}</div>
+                </div>
+                <div class="draft-actions">
+                    <button class="btn-primary btn-sm" onclick="openDraftByAssignment('${safeText(row.assignmentId)}')">Open Draft</button>
+                    <button class="btn-secondary btn-sm" onclick="deleteDraftByAssignment('${safeText(row.assignmentId)}')">Delete</button>
+                </div>
+            </div>
+        `).join('');
+}
+
+function openDraftByAssignment(assignmentId) {
+        activeAssignmentId = assignmentId;
+        renderActiveJob();
+        setActivePage('job');
+}
+
+function deleteDraftByAssignment(assignmentId) {
+        clearAssignmentDraft(assignmentId);
+        renderDrafts();
+        showToast('Draft deleted.');
+}
 
 function renderHistory() {
     const search = (document.getElementById('history-search')?.value || '').toLowerCase();
@@ -628,7 +963,7 @@ function renderPerformance() {
     const totalResolvedEl = document.getElementById('perf-total-resolved');
     const onTimeEl = document.getElementById('perf-on-time');
     const satisfactionEl = document.getElementById('perf-satisfaction');
-    if (efficiencyEl) efficiencyEl.textContent = `${Math.round(closure)}%`;
+    if (efficiencyEl) efficiencyEl.textContent = `${computeEfficiencyScore()}%`;
     if (totalResolvedEl) totalResolvedEl.textContent = `${PERFORMANCE_DATA.resolved || 0}`;
     if (onTimeEl) onTimeEl.textContent = `${Math.round(onTime)}%`;
     if (satisfactionEl) satisfactionEl.textContent = `${satisfaction.toFixed(1)}`;
@@ -769,27 +1104,29 @@ function stopChatPolling() {
     if (chatInterval) {
         clearInterval(chatInterval);
         chatInterval = null;
-
-    function showNotification(title, message) {
-        const container = document.getElementById('notif-panel') || document.querySelector('.notif-panel');
-        if (!container) return;
-    
-        const item = document.createElement('div');
-        item.className = 'notif-item';
-        item.innerHTML = `<div class="notif-dot-inline"></div><div><div class="notif-msg">${safeText(title)}</div><div class="notif-time">${safeText(message)}</div></div>`;
-        container.insertBefore(item, container.querySelector('.notif-item') || container.firstChild);
-    
-        while (container.querySelectorAll('.notif-item').length > 5) {
-            container.lastChild?.remove();
-        }
     }
+}
 
-    function showCaseDetailsMap(caseId) {
-        const caseData = ASSIGNMENTS.find(c => c.id === caseId);
-        if (!caseData) {
-            showToast('Case not found.');
-            return;
-        }
+function showNotification(title, message) {
+    const container = document.getElementById('notif-panel') || document.querySelector('.notif-panel');
+    if (!container) return;
+
+    const item = document.createElement('div');
+    item.className = 'notif-item';
+    item.innerHTML = `<div class="notif-dot-inline"></div><div><div class="notif-msg">${safeText(title)}</div><div class="notif-time">${safeText(message)}</div></div>`;
+    container.insertBefore(item, container.querySelector('.notif-item') || container.firstChild);
+
+    while (container.querySelectorAll('.notif-item').length > 5) {
+        container.lastChild?.remove();
+    }
+}
+
+function showCaseDetailsMap(caseId) {
+    const caseData = ASSIGNMENTS.find(c => c.id === caseId);
+    if (!caseData) {
+        showToast('Case not found.');
+        return;
+    }
     
         const lat = Number.parseFloat(caseData.lat);
         const lng = Number.parseFloat(caseData.lng);
@@ -839,26 +1176,24 @@ function stopChatPolling() {
             </div>
         `);
     
-        setTimeout(() => {
-            if (typeof L !== 'undefined' && hasCoords) {
-                const mapEl = document.getElementById('details-case-map');
-                if (mapEl) {
-                    if (detailsMapInstance) {
-                        detailsMapInstance.remove();
-                        detailsMapMarker = null;
-                    }
-                
-                    detailsMapInstance = L.map('details-case-map', {zoomControl: true}).setView([lat, lng], 16);
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-                        maxZoom: 19,
-                    }).addTo(detailsMapInstance);
-                
-                    detailsMapMarker = L.marker([lat, lng]).addTo(detailsMapInstance).bindPopup(`<div style="font-weight:500">${safeText(caseData.cat)}</div><div style="font-size:12px">${safeText(caseData.id)}</div>`).openPopup();
-                    detailsMapInstance.invalidateSize();
+    setTimeout(() => {
+        if (typeof L !== 'undefined' && hasCoords) {
+            const mapEl = document.getElementById('details-case-map');
+            if (mapEl) {
+                if (detailsMapInstance) {
+                    detailsMapInstance.remove();
+                    detailsMapMarker = null;
                 }
+
+                detailsMapInstance = L.map('details-case-map', {zoomControl: true, scrollWheelZoom: false}).setView([lat, lng], 16);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                    maxZoom: 19,
+                }).addTo(detailsMapInstance);
+
+                detailsMapMarker = L.marker([lat, lng]).addTo(detailsMapInstance).bindPopup(`<div style="font-weight:500">${safeText(caseData.cat)}</div><div style="font-size:12px">${safeText(caseData.id)}</div>`).openPopup();
+                detailsMapInstance.invalidateSize();
             }
-        }, 200);
-    }
-    }
+        }
+    }, 200);
 }
