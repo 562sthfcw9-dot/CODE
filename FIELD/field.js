@@ -288,27 +288,48 @@ function renderPerformance() {
 }
 
 /* ── PAGE CHANGE HOOK ──────────────────────────────────────── */
-const __base_setActivePage = typeof setActivePage === 'function' ? setActivePage : null;
-function setActivePage(pageId) {
-  if (__base_setActivePage) {
-    __base_setActivePage(pageId);
-  } else {
-    console.warn('Base setActivePage not found; fallback route:', pageId);
-    navigateToPage(pageId);
+const __baseSetActivePage = window.setActivePage;
+window.setActivePage = function (pageId) {
+  if (window.__fieldSetActiveLock) {
+    return;
   }
+  window.__fieldSetActiveLock = true;
 
-  if (pageId === 'job') {
-    checkedIn = false;
-    startJobCountdown();
-    /* Reset check-in panel state */
-    const statusEl   = document.getElementById('checkin-status');
-    const checkinBtn = document.getElementById('btn-checkin');
-    const simBtn     = document.getElementById('btn-simulate');
-    if (statusEl)   { statusEl.className = 'checkin-status'; statusEl.textContent = ''; }
-    if (checkinBtn) { checkinBtn.disabled = false; checkinBtn.style.opacity = '1'; }
-    if (simBtn)     { simBtn.disabled     = false; simBtn.style.opacity     = '1'; }
+  try {
+    if (typeof __baseSetActivePage === 'function' && __baseSetActivePage !== window.setActivePage) {
+      __baseSetActivePage(pageId);
+    } else {
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const target = document.getElementById('nav-' + pageId);
+      if (target) target.classList.add('active');
+
+      document.querySelectorAll('.page-section').forEach(el => el.classList.add('hidden'));
+      const section = document.getElementById('page-' + pageId);
+      if (section) section.classList.remove('hidden');
+
+      const titleMap = {
+        dash: 'Dashboard', assigned: 'Assigned Cases', job: 'Active Job', history: 'Case History', performance: 'My Performance',
+      };
+      const titleEl = document.getElementById('topbar-title');
+      if (titleEl) titleEl.textContent = titleMap[pageId] || 'Dashboard';
+      window.scrollTo(0, 0);
+    }
+
+    if (pageId === 'job') {
+      checkedIn = false;
+      startJobCountdown();
+      /* Reset check-in panel state */
+      const statusEl = document.getElementById('checkin-status');
+      const checkinBtn = document.getElementById('btn-checkin');
+      const simBtn = document.getElementById('btn-simulate');
+      if (statusEl) { statusEl.className = 'checkin-status'; statusEl.textContent = ''; }
+      if (checkinBtn) { checkinBtn.disabled = false; checkinBtn.style.opacity = '1'; }
+      if (simBtn) { simBtn.disabled = false; simBtn.style.opacity = '1'; }
+    }
+    if (pageId === 'assigned') renderAssigned();
+    if (pageId === 'history') renderHistory();
+    if (pageId === 'performance') renderPerformance();
+  } finally {
+    window.__fieldSetActiveLock = false;
   }
-  if (pageId === 'assigned')    renderAssigned();
-  if (pageId === 'history')     renderHistory();
-  if (pageId === 'performance') renderPerformance();
-}
+};

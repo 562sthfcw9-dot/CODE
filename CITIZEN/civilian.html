@@ -133,7 +133,7 @@
             </div>
             <div class="form-group">
               <label for="f-brgy">Barangay *</label>
-              <select id="f-brgy" class="form-select">
+              <select id="f-brgy" class="form-select" onchange="updateAddressField()">
                 <option>Commonwealth</option>
                 <option>Batasan Hills</option>
                 <option>Central</option>
@@ -142,11 +142,16 @@
             </div>
           </div>
           <div class="form-group">
+            <label for="f-address">Incident Address *</label>
+            <input id="f-address" class="form-input" type="text" placeholder="e.g. 123 Main Street, near XYZ store" />
+            <div style="font-size:11px;color:var(--mist);margin-top:4px">Address in the selected barangay</div>
+          </div>
+          <div class="form-group">
             <label>Pin Incident Location on Map *</label>
             <div id="complaint-map" style="height:260px;margin-top:6px;border-radius:8px;border:1px solid var(--border)"></div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
               <span style="font-size:12px;color:var(--mist)" id="pin-coords-label">Click the map to pin the exact incident location.</span>
-              <button class="btn-secondary btn-sm" onclick="useGpsLocation()">📍 Use My GPS Location</button>
+              <button class="btn-secondary btn-sm" type="button" onclick="useGpsLocation()">📍 Use My GPS Location</button>
             </div>
           </div>
           <div class="btn-row">
@@ -193,11 +198,15 @@
           <div class="card-head"><span class="card-title">Evidence &amp; Submit</span></div>
           <div class="form-group">
             <label>Upload Evidence (Photo / Video)</label>
-            <div class="upload-box" style="margin-top:6px">
+            <div class="upload-box" id="upload-box" style="margin-top:6px;cursor:pointer;position:relative">
+              <input type="file" id="evidence-upload" accept="image/*,video/*" style="display:none" onchange="handleFileUpload(event)" />
               <div class="upload-icon">📎</div>
               <div class="upload-text">Drag &amp; drop or click to upload</div>
-              <div class="upload-sub">JPG, PNG, MP4 · Max 50MB · Stored via Cloudinary</div>
+              <div class="upload-sub">JPG, PNG, MP4 · Max 50MB</div>
+              <div class="upload-progress hidden" id="upload-progress-bar" style="margin-top:10px;height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:100%;background:var(--blue);width:0%" id="upload-progress-fill"></div></div>
             </div>
+            <div id="upload-status" style="margin-top:8px;font-size:12px;color:var(--mist)"></div>
+            <div id="uploaded-files" style="margin-top:12px"></div>
           </div>
           <div class="form-group" style="margin-bottom:20px">
             <label style="margin-bottom:10px">Reporting Options</label>
@@ -224,7 +233,7 @@
       <section id="page-complaints" class="page-section hidden">
         <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
           <input class="form-input" style="max-width:280px" id="complaints-search" placeholder="Search by ID or category…" oninput="renderComplaintsTable()" />
-          <select class="form-select" style="width:auto" id="complaints-filter" onchange="renderComplaintsTable()">
+          <select class="form-select" style="width:auto" id="complaints-filter-status" onchange="renderComplaintsTable()">
             <option value="">All Statuses</option>
             <option value="submitted">Submitted</option>
             <option value="verified">Verified</option>
@@ -233,6 +242,13 @@
             <option value="resolved">Resolved</option>
             <option value="closed">Closed</option>
             <option value="cancelled">Cancelled</option>
+          </select>
+          <select class="form-select" style="width:auto" id="complaints-filter-brgy" onchange="renderComplaintsTable()">
+            <option value="">All Barangays</option>
+            <option value="Commonwealth">Commonwealth</option>
+            <option value="Batasan Hills">Batasan Hills</option>
+            <option value="Central">Central</option>
+            <option value="Sto. Cristo">Sto. Cristo</option>
           </select>
         </div>
         <div class="card" style="padding:0">
@@ -250,6 +266,19 @@
       <!-- ═══════════════ PAGE: MY PROFILE ═══════════════ -->
       <section id="page-profile" class="page-section hidden">
         <div class="profile-grid">
+
+          <!-- Profile Picture -->
+          <div class="card">
+            <div class="card-head"><span class="card-title">Profile Picture</span></div>
+            <div style="text-align:center;padding:20px 0">
+              <div id="profile-avatar-display" style="width:120px;height:120px;margin:0 auto;background:var(--surface);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:48px;cursor:pointer;border:2px solid var(--border);transition:border-color 0.2s" onclick="document.getElementById('profile-picture-input').click()">
+                <span id="profile-avatar-letter">JD</span>
+              </div>
+              <div style="margin-top:12px;font-size:12px;color:var(--mist)">Click to upload or change picture</div>
+              <input type="file" id="profile-picture-input" accept="image/*" style="display:none" onchange="uploadProfilePicture(event)" />
+              <div id="profile-picture-status" style="margin-top:10px;font-size:12px;color:var(--mist)"></div>
+            </div>
+          </div>
 
           <!-- Personal Info -->
           <div class="card">
@@ -315,7 +344,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="../data.js?v=20260507"></script>
-<script src="../api.js?v=20260507"></script>
-<script src="civilian.backend.js?v=20260507"></script>
+<script src="../api.js?v=20260508"></script>
+<script src="civilian.backend.js?v=20260508"></script>
 </body>
 </html>

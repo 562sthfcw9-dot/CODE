@@ -93,11 +93,12 @@ function apiPathError(message) {
 async function rawFetch(url, options) {
     const res = await fetch(url, options);
     const text = await res.text();
+    const normalizedText = typeof text === 'string' ? text.replace(/^\uFEFF/, '') : text;
     let json;
     try {
-        json = text ? JSON.parse(text) : null;
+        json = normalizedText ? JSON.parse(normalizedText) : null;
     } catch (error) {
-        const looksLikeHtml = /^\s*</.test(text);
+        const looksLikeHtml = /^\s*</.test(normalizedText || '');
         if (res.status === 404 || looksLikeHtml) {
             throw apiPathError('Invalid server response (likely wrong URL path). Open the app via localhost and check that api/register.php exists under your project folder.');
         }

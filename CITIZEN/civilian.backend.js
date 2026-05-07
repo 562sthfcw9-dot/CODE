@@ -43,6 +43,9 @@ async function initCivilian() {
     renderComplaintsTable();
     renderBrgyGrid();
     renderProfilePage();
+    
+    /* Initialize upload box handlers */
+    initUploadBox();
 }
 
 async function loadMyComplaints() {
@@ -112,11 +115,13 @@ function renderDashboard() {
 
 function renderComplaintsTable() {
     const search = (document.getElementById('complaints-search')?.value || '').toLowerCase();
-    const statusFil = document.getElementById('complaints-filter')?.value || '';
+    const statusFil = document.getElementById('complaints-filter-status')?.value || '';
+    const brgyFil = document.getElementById('complaints-filter-brgy')?.value || '';
     const my = getMyComplaints().filter(c => {
         const matchSearch = !search || c.id.toLowerCase().includes(search) || c.cat.toLowerCase().includes(search);
         const matchStatus = !statusFil || c.status === statusFil;
-        return matchSearch && matchStatus;
+        const matchBrgy = !brgyFil || c.brgy === brgyFil;
+        return matchSearch && matchStatus && matchBrgy;
     });
 
     const tbody = document.getElementById('complaints-tbody');
@@ -168,8 +173,14 @@ function goToStep(step) {
     /* validate before advancing */
     if (step === 2) {
         const cat = document.getElementById('f-cat')?.value;
+        const brgy = document.getElementById('f-brgy')?.value;
+        const address = document.getElementById('f-address')?.value.trim();
         if (!cat) {
             showToast('Please select a complaint category before proceeding.');
+            return;
+        }
+        if (!address) {
+            showToast('Please enter an incident address before proceeding.');
             return;
         }
     }
@@ -226,6 +237,7 @@ function toggleAnonWarning(checkbox) {
 function buildReviewSummary() {
     const cat = document.getElementById('f-cat')?.value || '—';
     const brgy = document.getElementById('f-brgy')?.value || '—';
+    const address = document.getElementById('f-address')?.value || '—';
     const date = document.getElementById('f-date')?.value || '—';
     const time = document.getElementById('f-time')?.value || '—';
     const priority = selectedPriority.charAt(0).toUpperCase() + selectedPriority.slice(1);
@@ -233,7 +245,7 @@ function buildReviewSummary() {
 
     document.getElementById('review-summary').innerHTML = `
       <div class="review-summary-title">Review Your Submission</div>
-      ${[['Category', cat], ['Barangay', brgy], ['Date', date], ['Time', time], ['Priority', priority], ['Anonymous', anon]].map(([l, v]) => `
+      ${[['Category', cat], ['Barangay', brgy], ['Address', address], ['Date', date], ['Time', time], ['Priority', priority], ['Anonymous', anon]].map(([l, v]) => `
         <div class="review-row">
           <span class="review-label">${safeText(l)}:</span>
           <span class="review-value">${safeText(v)}</span>
@@ -243,12 +255,13 @@ function buildReviewSummary() {
 async function submitComplaint() {
     const category = document.getElementById('f-cat')?.value || '';
     const barangay = document.getElementById('f-brgy')?.value || '';
+    const address = document.getElementById('f-address')?.value.trim() || '';
     const date = document.getElementById('f-date')?.value || '';
     const time = document.getElementById('f-time')?.value || '';
     const desc = document.getElementById('f-desc')?.value.trim() || '';
     const anonymous = document.getElementById('anon-toggle')?.checked || false;
 
-    if (!category || !barangay || !date || !time) {
+    if (!category || !barangay || !address || !date || !time) {
         showToast('Please complete all complaint fields before submitting.');
         goToStep(2);
         return;
@@ -260,10 +273,11 @@ async function submitComplaint() {
     }
 
     try {
-        const response = await apiFetch('complaints.php', {
+        const payload = {
             action: 'submit',
             category,
             barangay,
+            address,
             date,
             time,
             description: desc,
@@ -271,22 +285,34 @@ async function submitComplaint() {
             anonymous,
             lat: pinnedLat,
             lng: pinnedLng,
-        }, 'POST');
+        };
+
+        // If files were uploaded, include them
+        if (uploadedFiles.length > 0) {
+            payload.media = uploadedFiles;
+        }
+
+        const response = await apiFetch('complaints.php', payload, 'POST');
         await loadMyComplaints();
         renderDashboard();
         renderComplaintsTable();
         showToast(`✓ Complaint submitted! Tracking ID: ${safeText(response.tracking_number)}`);
+        
         /* reset form */
+        uploadedFiles = [];
         pinnedLat = null; pinnedLng = null;
         if (complaintMapMarker) { complaintMapMarker.remove(); complaintMapMarker = null; }
         const pinLabel = document.getElementById('pin-coords-label');
         if (pinLabel) pinLabel.textContent = 'Click the map to pin the exact incident location.';
         document.getElementById('f-cat').value = '';
+        document.getElementById('f-address').value = '';
         document.getElementById('f-desc').value = '';
         document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
         document.getElementById('f-time').value = '';
         document.getElementById('anon-toggle').checked = false;
         document.getElementById('anon-warning').classList.add('hidden');
+        document.getElementById('upload-status').textContent = '';
+        document.getElementById('uploaded-files').innerHTML = '';
         selectedPriority = 'medium';
         document.querySelectorAll('.priority-pill').forEach(p => p.classList.toggle('sel', p.dataset.p === 'medium'));
         goToStep(1);
@@ -308,6 +334,10 @@ function renderProfilePage() {
     document.getElementById('edit-profile-email').value = CIVILIAN_USER.email || '';
     document.getElementById('edit-profile-phone').value = CIVILIAN_USER.phone || '';
     document.getElementById('edit-profile-brgy').value = CIVILIAN_USER.home_barangay || '';
+    
+    // Set profile avatar letter
+    const letter = (CIVILIAN_USER.name || CIVILIAN_USER.username || 'U').charAt(0).toUpperCase();
+    document.getElementById('profile-avatar-letter').textContent = letter;
 }
 
 let editingProfile = false;
@@ -317,6 +347,62 @@ function toggleProfileEdit() {
     document.getElementById('profile-view').classList.toggle('hidden', editingProfile);
     document.getElementById('profile-edit').classList.toggle('hidden', !editingProfile);
     document.getElementById('edit-btn').textContent = editingProfile ? '✕ Cancel' : '✎ Edit';
+}
+
+async function uploadProfilePicture(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
+        showToast('Only JPG, PNG, and GIF images allowed.');
+        return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+        showToast('File size must be less than 5MB.');
+        return;
+    }
+    
+    const statusEl = document.getElementById('profile-picture-status');
+    statusEl.textContent = 'Uploading...';
+    
+    const formData = new FormData();
+    formData.append('action', 'upload_evidence');
+    formData.append('file', file);
+    
+    try {
+        const xhr = new XMLHttpRequest();
+        xhr.addEventListener('load', () => {
+            if (xhr.status === 200) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        statusEl.textContent = '✓ Picture uploaded successfully!';
+                        CIVILIAN_USER.profile_picture_url = response.url;
+                        // Display the uploaded image
+                        const avatarDisplay = document.getElementById('profile-avatar-display');
+                        avatarDisplay.innerHTML = `<img src="${response.url}" style="width:100%;height:100%;border-radius:50%;object-fit:cover" />`;
+                        setTimeout(() => { statusEl.textContent = ''; }, 3000);
+                    } else {
+                        statusEl.textContent = '✗ ' + (response.message || 'Upload failed');
+                    }
+                } catch (e) {
+                    statusEl.textContent = '✗ Invalid response';
+                }
+            } else {
+                statusEl.textContent = '✗ Upload failed';
+            }
+        });
+        
+        xhr.addEventListener('error', () => {
+            statusEl.textContent = '✗ Upload error';
+        });
+        
+        xhr.open('POST', '../api/media.php');
+        xhr.send(formData);
+    } catch (error) {
+        statusEl.textContent = '✗ ' + error.message;
+    }
 }
 
 async function saveProfile() {
@@ -377,6 +463,161 @@ async function updatePassword() {
     }
 }
 
+/* ── FILE UPLOAD ───────────────────────────────────────────── */
+let uploadedFiles = [];
+
+function initUploadBox() {
+    const uploadBox = document.getElementById('upload-box');
+    const evidenceInput = document.getElementById('evidence-upload');
+    if (!uploadBox || !evidenceInput) {
+        console.warn('Upload box or file input not found');
+        return;
+    }
+    
+    // Click upload box to trigger file input
+    uploadBox.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        evidenceInput.click();
+    });
+    
+    uploadBox.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadBox.style.backgroundColor = 'var(--surface)';
+        uploadBox.style.borderColor = 'var(--steel)';
+    });
+    
+    uploadBox.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadBox.style.backgroundColor = '';
+        uploadBox.style.borderColor = '';
+    });
+    
+    uploadBox.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadBox.style.backgroundColor = '';
+        uploadBox.style.borderColor = '';
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFileUpload({target: {files}});
+        }
+    });
+    
+    // Prevent default drag behavior on document
+    document.addEventListener('dragover', (e) => {
+        e.preventDefault();
+    });
+    document.addEventListener('drop', (e) => {
+        e.preventDefault();
+    });
+}
+
+async function handleFileUpload(event) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    
+    const file = files[0];
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    
+    if (file.size > maxSize) {
+        showToast('File size exceeds 50MB limit.');
+        return;
+    }
+    
+    if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime'].includes(file.type)) {
+        showToast('Only JPG, PNG, GIF, WebP, and MP4 files are allowed.');
+        return;
+    }
+    
+    await uploadEvidence(file);
+}
+
+async function uploadEvidence(file) {
+    const progressBar = document.getElementById('upload-progress-bar');
+    const progressContainer = document.getElementById('upload-progress-bar').parentElement;
+    const statusEl = document.getElementById('upload-status');
+    const filesContainer = document.getElementById('uploaded-files');
+    
+    progressContainer.classList.remove('hidden');
+    statusEl.textContent = 'Uploading...';
+    
+    const formData = new FormData();
+    formData.append('action', 'upload_evidence');
+    formData.append('file', file);
+    
+    try {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const percent = (e.loaded / e.total) * 100;
+                document.getElementById('upload-progress-fill').style.width = percent + '%';
+            }
+        });
+        
+        xhr.addEventListener('load', () => {
+            if (xhr.status === 200) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        uploadedFiles.push({
+                            filename: response.filename,
+                            url: response.url,
+                            type: file.type
+                        });
+                        statusEl.textContent = `✓ ${file.name} uploaded successfully.`;
+                        filesContainer.innerHTML = uploadedFiles.map((f, i) => `
+                            <div style="display:flex;gap:8px;align-items:center;padding:8px;background:var(--surface);border-radius:4px;font-size:12px;margin-bottom:6px">
+                                <span>${f.type.includes('video') ? '🎬' : '📷'}</span>
+                                <span>${f.filename}</span>
+                                <button class="btn-danger btn-sm" style="margin-left:auto" onclick="removeUploadedFile(${i})">Remove</button>
+                            </div>`).join('');
+                        progressContainer.classList.add('hidden');
+                    } else {
+                        statusEl.textContent = '✗ ' + (response.message || 'Upload failed');
+                        showToast(response.message || 'Upload failed');
+                    }
+                } catch (e) {
+                    statusEl.textContent = '✗ Invalid server response';
+                    showToast('Invalid server response');
+                }
+            } else {
+                statusEl.textContent = `✗ Upload failed (${xhr.status})`;
+                showToast(`Upload failed with status ${xhr.status}`);
+            }
+        });
+        
+        xhr.addEventListener('error', () => {
+            statusEl.textContent = '✗ Upload error';
+            showToast('Upload error');
+        });
+        
+        xhr.open('POST', '../api/media.php');
+        xhr.send(formData);
+    } catch (error) {
+        statusEl.textContent = '✗ ' + error.message;
+        showToast(error.message);
+    }
+}
+
+function removeUploadedFile(index) {
+    uploadedFiles.splice(index, 1);
+    const filesContainer = document.getElementById('uploaded-files');
+    if (uploadedFiles.length === 0) {
+        filesContainer.innerHTML = '';
+        document.getElementById('upload-status').textContent = '';
+    } else {
+        filesContainer.innerHTML = uploadedFiles.map((f, i) => `
+            <div style="display:flex;gap:8px;align-items:center;padding:8px;background:var(--surface);border-radius:4px;font-size:12px;margin-bottom:6px">
+                <span>${f.type.includes('video') ? '🎬' : '📷'}</span>
+                <span>${f.filename}</span>
+                <button class="btn-danger btn-sm" style="margin-left:auto" onclick="removeUploadedFile(${i})">Remove</button>
+            </div>`).join('');
+    }
+}
+
 /* ── LEAFLET MAP ───────────────────────────────────────────── */
 function initComplaintMap() {
     const container = document.getElementById('complaint-map');
@@ -386,7 +627,7 @@ function initComplaintMap() {
         return;
     }
     const defaultLat = 14.6760, defaultLng = 121.0437;
-    complaintMap = L.map('complaint-map').setView([defaultLat, defaultLng], 14);
+    complaintMap = L.map('complaint-map', {zoomControl: false}).setView([defaultLat, defaultLng], 14);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 19,
@@ -425,6 +666,14 @@ function useGpsLocation() {
     }, () => {
         showToast('Could not retrieve GPS location. Please pin manually on the map.');
     });
+}
+
+function updateAddressField() {
+    const brgy = document.getElementById('f-brgy')?.value || '';
+    const addressInput = document.getElementById('f-address');
+    if (addressInput) {
+        addressInput.placeholder = `Enter address in ${brgy}`;
+    }
 }
 
 /* ── TIMELINE (API-backed, overrides data.js version) ──────── */

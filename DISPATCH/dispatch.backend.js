@@ -149,15 +149,30 @@ async function initDispatch() {
 }
 
 async function loadDispatchData() {
-    const dashboardResp = await apiFetch('dispatch.php', {action: 'dashboard'});
-    const queueResp = await apiFetch('dispatch.php', {action: 'queue'});
-    const officersResp = await apiFetch('dispatch.php', {action: 'officers'});
-    const activeResp = await apiFetch('dispatch.php', {action: 'activeCases'});
+  const [dashboardResp, queueResp, officersResp, activeResp] = await Promise.allSettled([
+    apiFetch('dispatch.php', {action: 'dashboard'}),
+    apiFetch('dispatch.php', {action: 'queue'}),
+    apiFetch('dispatch.php', {action: 'officers'}),
+    apiFetch('dispatch.php', {action: 'activeCases'}),
+  ]);
 
-    QUEUE_DATA = queueResp.complaints || [];
-    OFFICERS_DATA = officersResp.officers || [];
-    ACTIVE_CASES = activeResp.activeCases || [];
-    window.dispatchCounts = dashboardResp.counts || {pending: 0, dup_count: 0, active_cases: 0};
+  if (dashboardResp.status === 'fulfilled') {
+    window.dispatchCounts = dashboardResp.value.counts || {pending: 0, dup_count: 0, active_cases: 0};
+  } else {
+    window.dispatchCounts = window.dispatchCounts || {pending: 0, dup_count: 0, active_cases: 0};
+  }
+
+  if (queueResp.status === 'fulfilled') {
+    QUEUE_DATA = queueResp.value.complaints || [];
+  }
+
+  if (officersResp.status === 'fulfilled') {
+    OFFICERS_DATA = officersResp.value.officers || [];
+  }
+
+  if (activeResp.status === 'fulfilled') {
+    ACTIVE_CASES = activeResp.value.activeCases || [];
+  }
 }
 
 function toggleNotif() {
@@ -222,17 +237,29 @@ function renderQueueTable() {
     const priority = document.getElementById('queue-priority')?.value || '';
     const brgy = document.getElementById('queue-brgy')?.value || '';
 
-    const submitted = QUEUE_DATA.filter(c => c.status === 'submitted');
-    const verified = QUEUE_DATA.filter(c => c.status === 'verified');
+  // De-duplicate by tracking ID to prevent join-expanded rows from rendering repeatedly.
+  const deduped = [];
+  const seen = new Set();
+  for (const c of QUEUE_DATA) {
+    const key = String(c.id || '');
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(c);
+  }
+
+  const submitted = deduped.filter(c => c.status === 'submitted');
+  const verified = deduped.filter(c => c.status === 'verified');
 
     document.getElementById('tab-submitted-count').textContent = `(${submitted.length})`;
     document.getElementById('tab-verified-count').textContent = `(${verified.length})`;
 
     let list = dispatchActiveQueueTab === 'submitted' ? submitted : verified;
     list = list.filter(c => {
-        const ms = !search || c.id.toLowerCase().includes(search) || c.cat.toLowerCase().includes(search);
-        const mp = !priority || c.priority === priority;
-        const mb = !brgy || c.brgy === brgy;
+      const id = String(c.id || '').toLowerCase();
+      const cat = String(c.cat || '').toLowerCase();
+      const ms = !search || id.includes(search) || cat.includes(search);
+      const mp = !priority || String(c.priority || '') === priority;
+      const mb = !brgy || String(c.brgy || '') === brgy;
         return ms && mp && mb;
     });
 
@@ -319,12 +346,16 @@ function openReviewModal(id) {
     if (!c) return;
     dispatchSelectedOfficerId = null;
 
-    const officerCards = OFFICERS_DATA.map(o => `
-      <div class="officer-card${o.status !== 'available' ? ' disabled' : ''}" id="ocard-${safeText(o.id)}" onclick="${o.status === 'available' ? `selectOfficer('${safeText(o.id)}')` : 'void(0)'}">
+    const officerCards = OFFICERS_DATA.map(o => {
+        const blocked = parseInt(o.is_assigned) === 1;
+        const statusLabel = blocked ? '⬤ On Assignment' : (o.status === 'available' ? '● Available' : `○ ${o.status}`);
+        const statusClass = blocked ? 'busy' : (o.status === 'available' ? 'available' : 'busy');
+        return `<div class="officer-card${blocked ? ' disabled' : ''}" id="ocard-${safeText(o.id)}" onclick="${blocked ? 'void(0)' : `selectOfficer('${safeText(o.id)}')`}">
         <div class="officer-name">${safeText(o.name)}</div>
-        <div class="officer-meta">${safeText(o.cases_closed || 0)}/5 active · ${safeText(o.brgy)}</div>
-        <div class="officer-status ${o.status === 'available' ? 'available' : 'busy'}">${o.status === 'available' ? '● Available' : '⬤ At Capacity'}</div>
-      </div>`).join('');
+        <div class="officer-meta">Badge: ${safeText(o.code)} · ${safeText(o.brgy)}</div>
+        <div class="officer-status ${statusClass}">${statusLabel}</div>
+      </div>`;
+    }).join('');
 
     const canAction = ['submitted', 'verified'].includes(c.status);
     openModal(`
@@ -404,12 +435,16 @@ function openVerifyModal(id) {
     if (!c) return;
     dispatchSelectedOfficerId = null;
 
-    const officerCards = OFFICERS_DATA.filter(o => o.status === 'available').map(o => `
-      <div class="officer-card" id="vocard-${safeText(o.id)}" onclick="selectOfficerVerify('${safeText(o.id)}')">
+    const officerCards = OFFICERS_DATA.map(o => {
+        const blocked = parseInt(o.is_assigned) === 1;
+        const statusLabel = blocked ? '⬤ On Assignment' : (o.status === 'available' ? '● Available' : `○ ${o.status}`);
+        const statusClass = blocked ? 'busy' : (o.status === 'available' ? 'available' : 'busy');
+        return `<div class="officer-card${blocked ? ' disabled' : ''}" id="vocard-${safeText(o.id)}" onclick="${blocked ? 'void(0)' : `selectOfficerVerify('${safeText(o.id)}')`}">
         <div class="officer-name">${safeText(o.name)}</div>
-        <div class="officer-meta">${safeText(o.cases_closed || 0)}/5 active · ${safeText(o.brgy)}</div>
-        <div class="officer-status available">● Available</div>
-      </div>`).join('');
+        <div class="officer-meta">Badge: ${safeText(o.code)} · ${safeText(o.brgy)}</div>
+        <div class="officer-status ${statusClass}">${statusLabel}</div>
+      </div>`;
+    }).join('');
 
     openModal(`
       <div class="modal-overlay" onclick="if(event.target===this)closeModal()">

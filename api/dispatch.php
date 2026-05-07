@@ -8,6 +8,23 @@ $db     = getDb();
 $dispatchId = (int)($user['id'] ?? 0);
 $dispatchUid = (int)($user['user_id'] ?? $dispatchId);
 
+/* ── Auto-release: assignments older than 3 hours become 'failed', officer freed ── */
+try {
+    $db->exec(
+        "UPDATE Assignments SET assignment_status = 'failed'
+         WHERE assignment_status IN ('pending','in_progress')
+           AND assigned_at < NOW() - INTERVAL 3 HOUR"
+    );
+    $db->exec(
+        "UPDATE Field_officers SET is_available = 'available'
+         WHERE is_available = 'busy'
+           AND officer_id NOT IN (
+               SELECT DISTINCT field_officer_id FROM Assignments
+               WHERE assignment_status IN ('pending','in_progress')
+           )"
+    );
+} catch (PDOException $e) { /* non-fatal */ }
+
 if ($action === 'dashboard') {
     $counts = [];
     $counts['pending']      = (int)$db->query("SELECT COUNT(*) FROM Complaints WHERE status = 'submitted'")->fetchColumn();
@@ -22,9 +39,12 @@ if ($action === 'queue') {
                 c.priority, c.status, c.submitted_at AS date,
                 c.is_anonymous AS anon, c.description,
                 c.latitude AS lat, c.longitude AS lng,
-                IF(d.duplicate_complaint_id IS NULL, 0, 1) AS duplicate
+                CASE WHEN EXISTS (
+                    SELECT 1 FROM duplicate_complaint_detection d
+                    WHERE d.primary_complaint_id = c.complaint_id
+                       OR d.duplicate_complaint_id = c.complaint_id
+                ) THEN 1 ELSE 0 END AS duplicate
          FROM Complaints c
-         LEFT JOIN duplicate_complaint_detection d ON d.primary_complaint_id = c.complaint_id
          WHERE c.status IN ('submitted','verified')
          ORDER BY c.submitted_at DESC"
     );
@@ -37,7 +57,12 @@ if ($action === 'officers') {
                 f.assigned_barangay AS brgy, f.is_available AS status,
                 f.current_latitude AS lat, f.current_longitude AS lng,
                 f.gps_last_updated, f.total_resolved AS cases_closed,
-                f.average_user_rating AS rating
+                f.average_user_rating AS rating,
+                CASE WHEN EXISTS (
+                    SELECT 1 FROM Assignments a
+                    WHERE a.field_officer_id = f.officer_id
+                      AND a.assignment_status IN ('pending','in_progress')
+                ) THEN 1 ELSE 0 END AS is_assigned
          FROM Field_officers f
          JOIN Users u ON u.user_id = f.user_id
          WHERE u.is_active = 1
@@ -64,8 +89,21 @@ if ($action === 'verifyAssign') {
     }
     $complaintId = (int)$complaint['complaint_id'];
 
-    $db->prepare('UPDATE Complaints SET status = :status, dispatch_id = :did WHERE complaint_id = :cid')
-       ->execute([':status' => 'assigned', ':did' => $dispatchId, ':cid' => $complaintId]);
+     // Block if officer already has an active assignment
+     $activeCheck = $db->prepare(
+          'SELECT COUNT(*) FROM Assignments WHERE field_officer_id = :oid AND assignment_status IN ("pending","in_progress")'
+     );
+     $activeCheck->execute([':oid' => $officerId]);
+     if ((int)$activeCheck->fetchColumn() > 0) {
+          errorResponse('This officer is currently assigned to another complaint. Please select a different officer.');
+     }
+
+     $db->prepare('UPDATE Complaints SET status = :status, dispatch_id = :did WHERE complaint_id = :cid')
+         ->execute([':status' => 'assigned', ':did' => $dispatchId, ':cid' => $complaintId]);
+
+     // Mark officer as busy
+     $db->prepare('UPDATE Field_officers SET is_available = "busy" WHERE officer_id = :oid')
+         ->execute([':oid' => $officerId]);
 
     $deadline = date('Y-m-d H:i:s', strtotime('+30 minutes'));
     $db->prepare(
@@ -135,11 +173,34 @@ if ($action === 'reassign') {
          WHERE assignment_id = :aid'
     )->execute([':status' => 'reassigned', ':new_oid' => $newOfficerId, ':reason' => 'Dispatch reassigned case', ':aid' => $current['assignment_id']]);
 
+    // Check if new officer is already assigned
+    $newCheck = $db->prepare(
+        'SELECT COUNT(*) FROM Assignments WHERE field_officer_id = :oid AND assignment_status IN ("pending","in_progress")'
+    );
+    $newCheck->execute([':oid' => $newOfficerId]);
+    if ((int)$newCheck->fetchColumn() > 0) {
+        errorResponse('The selected officer is currently assigned to another complaint.');
+    }
+
     $deadline = date('Y-m-d H:i:s', strtotime('+30 minutes'));
     $db->prepare(
         'INSERT INTO Assignments (complaint_id, field_officer_id, dispatch_id, assigned_at, response_deadline, assignment_status, reassignment_reason)
          VALUES (:cid, :officer_id, :did, NOW(), :deadline, :status, :reason)'
     )->execute([':cid' => $complaintId, ':officer_id' => $newOfficerId, ':did' => $dispatchId, ':deadline' => $deadline, ':status' => 'pending', ':reason' => 'Reassigned after failure to arrive']);
+
+    // Free old officer if they have no remaining active assignments
+    $oldOfficerId = (int)$current['field_officer_id'];
+    $remainCheck = $db->prepare(
+        'SELECT COUNT(*) FROM Assignments WHERE field_officer_id = :oid AND assignment_status IN ("pending","in_progress")'
+    );
+    $remainCheck->execute([':oid' => $oldOfficerId]);
+    if ((int)$remainCheck->fetchColumn() === 0) {
+        $db->prepare('UPDATE Field_officers SET is_available = "available" WHERE officer_id = :oid')
+           ->execute([':oid' => $oldOfficerId]);
+    }
+    // Mark new officer as busy
+    $db->prepare('UPDATE Field_officers SET is_available = "busy" WHERE officer_id = :oid')
+       ->execute([':oid' => $newOfficerId]);
 
     $db->prepare('INSERT INTO Status_history (complaint_id, changed_by, status, notes) VALUES (:cid, :uid, :status, :notes)')
        ->execute([':cid' => $complaintId, ':uid' => $dispatchUid, ':status' => 'assigned', ':notes' => 'Case reassigned to officer ID ' . $newOfficerId]);

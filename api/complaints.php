@@ -57,14 +57,15 @@ if ($action === 'submit') {
 
     $category    = trim((string)($data['category'] ?? ''));
     $barangay    = trim((string)($data['barangay'] ?? ''));
+    $address     = trim((string)($data['address'] ?? ''));
     $date        = trim((string)($data['date'] ?? ''));
     $time        = trim((string)($data['time'] ?? ''));
     $description = trim((string)($data['description'] ?? ''));
     $priority    = trim((string)($data['priority'] ?? 'medium'));
     $anonymous   = isset($data['anonymous']) ? boolval($data['anonymous']) : false;
 
-    if ($category === '' || $barangay === '' || $date === '' || $time === '' || strlen($description) < 50) {
-        errorResponse('All complaint fields are required, and description must be at least 50 characters.');
+    if ($category === '' || $barangay === '' || $address === '' || $date === '' || $time === '' || strlen($description) < 50) {
+        errorResponse('All complaint fields are required (min 50 characters for description).');
     }
 
     $pinnedLat = isset($data['lat']) && is_numeric($data['lat']) ? (float)$data['lat'] : null;
@@ -76,16 +77,31 @@ if ($action === 'submit') {
     $dateField  = date('Y-m-d H:i:s', strtotime($date . ' ' . $time));
     $userId     = (int)($user['user_id'] ?? $user['id'] ?? 0);
 
+    // Check for duplicate from same user with same category and similar description
+    $dupCheckStmt = $db->prepare(
+        'SELECT complaint_id, tracking_id FROM Complaints
+         WHERE user_id = :uid 
+           AND category = :cat
+           AND description = :desc
+           AND status NOT IN ("cancelled", "rejected")
+           AND submitted_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)'
+    );
+    $dupCheckStmt->execute([':uid' => $userId, ':cat' => $category, ':desc' => $description]);
+    if ($dupCheckStmt->fetch()) {
+        errorResponse('You have already filed a complaint with this exact category and description within the past 7 days. Please submit a different complaint or wait for the existing one to be resolved.');
+    }
+
     $stmt = $db->prepare(
-        'INSERT INTO Complaints (user_id, tracking_id, category, asset_town, priority, status,
+        'INSERT INTO Complaints (user_id, tracking_id, category, asset_town, address, priority, status,
          description, is_anonymous, latitude, longitude, incident_datetime)
-         VALUES (:uid, :tracking, :cat, :brgy, :priority, :status, :desc, :anon, :lat, :lng, :datetime)'
+         VALUES (:uid, :tracking, :cat, :brgy, :address, :priority, :status, :desc, :anon, :lat, :lng, :datetime)'
     );
     $stmt->execute([
         ':uid'      => $userId,
         ':tracking' => $trackingId,
         ':cat'      => $category,
         ':brgy'     => $barangay,
+        ':address'  => $address,
         ':priority' => $priority,
         ':status'   => 'submitted',
         ':desc'     => $description,
@@ -98,6 +114,26 @@ if ($action === 'submit') {
 
     $db->prepare('INSERT INTO Status_history (complaint_id, changed_by, status, notes) VALUES (:cid, :uid, :status, :notes)')
        ->execute([':cid' => $newComplaintId, ':uid' => $userId, ':status' => 'submitted', ':notes' => 'Complaint submitted by user.']);
+
+    // Insert media files if provided
+    if (!empty($data['media']) && is_array($data['media'])) {
+        $mediaStmt = $db->prepare(
+            'INSERT INTO Media (complaint_id, file_url, file_type, uploaded_by_role)
+             VALUES (:cid, :url, :type, :role)'
+        );
+        foreach ($data['media'] as $media) {
+            $fileUrl = $media['url'] ?? $media['filename'] ?? '';
+            if ($fileUrl !== '') {
+                $fileType = strpos($media['type'], 'video') !== false ? 'video' : 'photo';
+                $mediaStmt->execute([
+                    ':cid' => $newComplaintId,
+                    ':url' => $fileUrl,
+                    ':type' => $fileType,
+                    ':role' => 'citizen'
+                ]);
+            }
+        }
+    }
 
     $duplicates = [];
     $dupStmt = $db->prepare(
@@ -121,7 +157,6 @@ if ($action === 'submit') {
 
     successResponse(['tracking_number' => $trackingId, 'duplicates' => $duplicates]);
 }
-
 if ($action === 'cancel') {
     if ($user['role'] !== 'regular') {
         errorResponse('Only regular users can cancel complaints.', 403);
