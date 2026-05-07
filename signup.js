@@ -192,6 +192,15 @@ async function submitDispatchSignup() {
   updateSubmitState();
 }
 
+function bindSignupFormSubmit() {
+  const form = document.getElementById('dispatch-signup');
+  if (!form) return;
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    submitDispatchSignup();
+  });
+}
+
 document.addEventListener('input', updateSubmitState);
 document.addEventListener('change', updateSubmitState);
 
@@ -206,4 +215,5 @@ document.addEventListener('keydown', e => {
   }
 });
 
+bindSignupFormSubmit();
 updateSubmitState();
