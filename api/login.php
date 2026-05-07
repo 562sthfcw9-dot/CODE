@@ -24,7 +24,7 @@ try {
         $stmt = $db->prepare('SELECT admin_id AS id, admin_full_name AS name, admin_email AS email, admin_password AS password_hash FROM dispatch_admin_accounts WHERE admin_email = :username1 OR admin_full_name = :username2');
         $stmt->execute([':username1' => $username, ':username2' => $username]);
         $user = $stmt->fetch();
-        $redirect = 'DISPATCH/dispatch.html';
+        $redirect = 'DISPATCH/dispatch.html?v=20260507';
     } elseif ($role === 'field') {
         $stmt = $db->prepare('SELECT officer_id AS id, full_name AS name, email_address AS email, password_hash FROM field_officer_accounts WHERE email_address = :username1 OR employee_id_number = :username2');
         $stmt->execute([':username1' => $username, ':username2' => $username]);

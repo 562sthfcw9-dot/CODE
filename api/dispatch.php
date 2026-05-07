@@ -15,7 +15,7 @@ if ($action === 'dashboard') {
 }
 
 if ($action === 'queue') {
-    $stmt = $db->query("SELECT t.tracking_number AS id, t.incident_category AS cat, t.incident_barangay AS brgy, t.urgency_priority AS priority, t.current_progress_status AS status, t.submission_timestamp AS date, t.is_reported_anonymously AS anon, t.incident_description AS desc, t.map_latitude AS lat, t.map_longitude AS lng, IF(d.duplicate_complaint_tracking_number IS NULL, 0, 1) AS duplicate FROM traffic_complaints_master t LEFT JOIN duplicate_complaint_detection d ON d.primary_complaint_tracking_number = t.tracking_number WHERE t.current_progress_status IN ('submitted','verified') ORDER BY t.submission_timestamp DESC");
+    $stmt = $db->query("SELECT t.tracking_number AS id, t.incident_category AS cat, t.incident_barangay AS brgy, t.urgency_priority AS priority, t.current_progress_status AS status, t.submission_timestamp AS date, t.is_reported_anonymously AS anon, t.incident_description AS `desc`, t.map_latitude AS lat, t.map_longitude AS lng, IF(d.duplicate_complaint_tracking_number IS NULL, 0, 1) AS duplicate FROM traffic_complaints_master t LEFT JOIN duplicate_complaint_detection d ON d.primary_complaint_tracking_number = t.tracking_number WHERE t.current_progress_status IN ('submitted','verified') ORDER BY t.submission_timestamp DESC");
     $complaints = $stmt->fetchAll();
     successResponse(['complaints' => $complaints]);
 }
@@ -92,7 +92,7 @@ if ($action === 'reassign') {
 }
 
 if ($action === 'activeCases') {
-    $stmt = $db->query("SELECT t.tracking_number AS id, t.incident_category AS cat, t.incident_barangay AS brgy, t.urgency_priority AS priority, t.current_progress_status AS status, t.submission_timestamp AS date, t.incident_description AS desc, t.map_latitude AS lat, t.map_longitude AS lng FROM traffic_complaints_master t WHERE t.current_progress_status IN ('assigned','in_progress') ORDER BY t.submission_timestamp DESC");
+    $stmt = $db->query("SELECT t.tracking_number AS id, t.incident_category AS cat, t.incident_barangay AS brgy, t.urgency_priority AS priority, t.current_progress_status AS status, t.submission_timestamp AS date, t.incident_description AS `desc`, t.map_latitude AS lat, t.map_longitude AS lng FROM traffic_complaints_master t WHERE t.current_progress_status IN ('assigned','in_progress') ORDER BY t.submission_timestamp DESC");
     successResponse(['activeCases' => $stmt->fetchAll()]);
 }
 

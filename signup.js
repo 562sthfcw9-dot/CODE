@@ -182,12 +182,17 @@ async function submitDispatchSignup() {
     });
 
     const data = await response.json();
-    if (data.success) {
-      window.location.href = 'index.html?registered=1';
+    if (response.ok && data.success) {
+      const signInRoutes = {
+        dispatch: 'dispatch-login.html?registered=1',
+        field: 'field-login.html?registered=1',
+        regular: 'citizen-login.html?registered=1',
+      };
+      window.location.href = signInRoutes[signupRole] || 'index.html?registered=1';
       return;
     }
 
-    showError(data.message || 'Registration failed.');
+    showError(data.error || data.message || 'Registration failed.');
   } catch (error) {
     showError('Unable to submit registration right now.');
   }

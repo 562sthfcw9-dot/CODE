@@ -459,24 +459,7 @@ function reassignCase(id) {
   openVerifyModal(id);
 }
 
-/* ── PAGE CHANGE HOOK — re-render dynamic pages on visit ───── */
-const _origSetActivePage = typeof setActivePage === 'function' ? setActivePage : null;
-
-/* Patch setActivePage to trigger renders */
-const __base_setActivePage = typeof setActivePage === 'function' ? setActivePage : null;
-function setActivePage(pageId) {
-  if (__base_setActivePage) {
-    __base_setActivePage(pageId);
-  } else {
-    console.warn('Base setActivePage not found; fallback route:', pageId);
-    navigateToPage(pageId);
-  }
-
-  if (pageId === 'active')   renderActiveCases();
-  if (pageId === 'officers') renderOfficers();
-  if (pageId === 'queue')    renderQueueTable();
-  if (pageId === 'profile')  renderProfile();
-}
+/* ── PAGE CHANGE HOOK — handled by dispatch.backend.js patchSetActivePage ───── */
 
 /* ── PROFILE PAGE ──────────────────────────────────────────── */
 function renderProfileCard() {

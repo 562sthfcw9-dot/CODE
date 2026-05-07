@@ -272,7 +272,13 @@ function renderActiveCases() {
         return;
     }
 
-    activeCasesList.innerHTML = ACTIVE_CASES.map(c => `
+    activeCasesList.innerHTML = ACTIVE_CASES.map(c => {
+      const lat = Number.parseFloat(c.lat);
+      const lng = Number.parseFloat(c.lng);
+      const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+      const coordLabel = hasCoords ? `${lat.toFixed(4)}, ${lng.toFixed(4)}` : 'Location unavailable';
+
+      return `
       <div class="active-case-card">
         <div class="active-case-header">
           <div>
@@ -292,11 +298,11 @@ function renderActiveCases() {
         <div class="active-case-body">
           <div>
             <div class="active-case-desc-label">Description</div>
-            <div class="active-case-desc">${safeText(c.desc)}</div>
+            <div class="active-case-desc">${safeText(c.desc || c.description || '')}</div>
           </div>
           <div class="map-placeholder" style="height:120px">
             <div class="map-icon">📍</div>
-            <div class="map-label">${safeText(c.lat.toFixed(4) + ', ' + c.lng.toFixed(4))}</div>
+            <div class="map-label">${safeText(coordLabel)}</div>
           </div>
         </div>
         <div class="active-case-footer">
@@ -304,7 +310,8 @@ function renderActiveCases() {
           <span class="officer-assigned-name">Field Officer</span>
           <span class="officer-en-route">● En route</span>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
 }
 
 function openReviewModal(id) {
