@@ -6,6 +6,25 @@ $action = trim((string)($_REQUEST['action'] ?? $data['action'] ?? 'thread'));
 $user = requireLogin();
 $db = getDb();
 
+function ensureChatMessagesTable(PDO $db): void
+{
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS chat_messages (
+            message_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            conversation_key VARCHAR(128) NOT NULL,
+            sender_role VARCHAR(32) NOT NULL,
+            sender_id INT UNSIGNED NOT NULL,
+            receiver_role VARCHAR(32) NOT NULL,
+            receiver_id INT UNSIGNED NOT NULL,
+            message_text TEXT NOT NULL,
+            sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_conversation (conversation_key, message_id),
+            INDEX idx_sender (sender_role, sender_id),
+            INDEX idx_receiver (receiver_role, receiver_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+}
+
 function buildConversationKey(string $roleA, string $idA, string $roleB, string $idB): string
 {
     if ($roleA < $roleB) {
@@ -13,6 +32,8 @@ function buildConversationKey(string $roleA, string $idA, string $roleB, string 
     }
     return sprintf('%s:%s|%s:%s', $roleB, $idB, $roleA, $idA);
 }
+
+ensureChatMessagesTable($db);
 
 $currentKey = '';
 $receiverRole = trim((string)($data['receiver_role'] ?? $_REQUEST['receiver_role'] ?? ''));

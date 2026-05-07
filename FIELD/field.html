@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <link rel="stylesheet" href="../base.css" />
   <link rel="stylesheet" href="field.css" />
 </head>
@@ -231,10 +232,10 @@
       <!-- ═══════════════ PAGE: MY PERFORMANCE ════════════ -->
       <section id="page-performance" class="page-section hidden">
         <div class="stats-row">
-          <div class="stat-card green"><div class="stat-card-label">Efficiency Score</div><div class="stat-card-val">92%</div><div class="stat-card-sub">This month</div></div>
-          <div class="stat-card"><div class="stat-card-label">Total Resolved</div><div class="stat-card-val">38</div><div class="stat-card-sub">All time</div></div>
-          <div class="stat-card blue"><div class="stat-card-label">On-Time Arrival</div><div class="stat-card-val">94%</div></div>
-          <div class="stat-card amber"><div class="stat-card-label">Avg. Satisfaction</div><div class="stat-card-val">4.3<span class="unit">/5</span></div></div>
+          <div class="stat-card green"><div class="stat-card-label">Efficiency Score</div><div class="stat-card-val" id="perf-efficiency">0%</div><div class="stat-card-sub">This month</div></div>
+          <div class="stat-card"><div class="stat-card-label">Total Resolved</div><div class="stat-card-val" id="perf-total-resolved">0</div><div class="stat-card-sub">All time</div></div>
+          <div class="stat-card blue"><div class="stat-card-label">On-Time Arrival</div><div class="stat-card-val" id="perf-on-time">0%</div></div>
+          <div class="stat-card amber"><div class="stat-card-label">Avg. Satisfaction</div><div class="stat-card-val"><span id="perf-satisfaction">0.0</span><span class="unit">/5</span></div></div>
         </div>
 
         <div class="perf-grid">
@@ -264,6 +265,7 @@
 <!-- Modal container -->
 <div id="modal-container"></div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="../data.js?v=20260508"></script>
 <script src="../api.js?v=20260508"></script>
 <script src="field.js?v=20260508"></script>

@@ -6,6 +6,8 @@
 
 let DISPATCH_USER = null;
 let QUEUE_DATA = [];
+let FIELD_OFFICERS_DATA = [];
+let DISPATCH_OFFICERS_DATA = [];
 let OFFICERS_DATA = [];
 let ACTIVE_CASES = [];
 let dispatchSelectedOfficerId = null;
@@ -32,6 +34,24 @@ const BRGY_CENTERS = {
 function _officerLatLng(o) {
     if (o.lat && o.lng) return [parseFloat(o.lat), parseFloat(o.lng)];
     return BRGY_CENTERS[o.brgy] || [14.6760, 121.0437];
+}
+
+function _normalizeOfficerSets(resp = {}) {
+  const field = Array.isArray(resp.field_officers) ? resp.field_officers : (Array.isArray(resp.officers) ? resp.officers : []);
+  const dispatch = Array.isArray(resp.dispatch_officers) ? resp.dispatch_officers : [];
+  const all = Array.isArray(resp.all_officers) ? resp.all_officers : [...field, ...dispatch];
+
+  FIELD_OFFICERS_DATA = field;
+  DISPATCH_OFFICERS_DATA = dispatch;
+  OFFICERS_DATA = all;
+}
+
+function _badgeClassByStatus(status) {
+  return (status === 'available' || status === 'on_duty') ? 'badge-verified' : 'badge-assigned';
+}
+
+function _officerRoleLabel(officer) {
+  return officer.officer_role === 'dispatch_officer' ? 'Dispatch' : 'Field';
 }
 
 function _officerIcon(status) {
@@ -63,7 +83,7 @@ function _syncMarkersToMap(mapInstance, markersObj, officers) {
     if (!mapInstance) return;
     const seen = new Set();
     for (const o of officers) {
-        const key = String(o.id);
+    const key = `${o.officer_role || 'field_officer'}:${o.id}`;
         seen.add(key);
         const pos = _officerLatLng(o);
         if (markersObj[key]) {
@@ -94,7 +114,7 @@ function initDashMap() {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         maxZoom: 19,
     }).addTo(_dashMap);
-    _syncMarkersToMap(_dashMap, _dashMarkers, OFFICERS_DATA);
+    _syncMarkersToMap(_dashMap, _dashMarkers, FIELD_OFFICERS_DATA);
 }
 
 function initOfficersPageMap() {
@@ -106,15 +126,15 @@ function initOfficersPageMap() {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         maxZoom: 19,
     }).addTo(_officersMap);
-    _syncMarkersToMap(_officersMap, _officersMarkers, OFFICERS_DATA);
+    _syncMarkersToMap(_officersMap, _officersMarkers, FIELD_OFFICERS_DATA);
 }
 
 async function refreshOfficerMap() {
     try {
         const resp = await apiFetch('dispatch.php', {action: 'officers'});
-        OFFICERS_DATA = resp.officers || [];
-        _syncMarkersToMap(_dashMap, _dashMarkers, OFFICERS_DATA);
-        _syncMarkersToMap(_officersMap, _officersMarkers, OFFICERS_DATA);
+    _normalizeOfficerSets(resp);
+    _syncMarkersToMap(_dashMap, _dashMarkers, FIELD_OFFICERS_DATA);
+    _syncMarkersToMap(_officersMap, _officersMarkers, FIELD_OFFICERS_DATA);
         const el = document.getElementById('map-last-updated');
         if (el) el.textContent = 'Updated ' + new Date().toLocaleTimeString();
         renderOfficers();
@@ -167,7 +187,7 @@ async function loadDispatchData() {
   }
 
   if (officersResp.status === 'fulfilled') {
-    OFFICERS_DATA = officersResp.value.officers || [];
+    _normalizeOfficerSets(officersResp.value);
   }
 
   if (activeResp.status === 'fulfilled') {
@@ -218,9 +238,9 @@ function renderDashboard() {
             <div class="officer-initials">${safeText(o.code.slice(-2) || o.name.split(' ').map(x => x[0]).join(''))}</div>
             <div style="flex:1">
               <div style="font-size:13px;font-weight:600">${safeText(o.name)}</div>
-              <div style="font-family:var(--font-mono);font-size:11px;color:var(--mist)">${o.cases_closed || 0} active · Brgy. ${safeText(o.brgy)}</div>
+              <div style="font-family:var(--font-mono);font-size:11px;color:var(--mist)">${_officerRoleLabel(o)} · Brgy. ${safeText(o.brgy || 'N/A')}</div>
             </div>
-            <span class="badge ${o.status === 'available' ? 'badge-verified' : 'badge-assigned'}">${safeText(o.status)}</span>
+            <span class="badge ${_badgeClassByStatus(o.status)}">${safeText(o.status)}</span>
           </div>`).join('');
     }
 }
@@ -346,7 +366,7 @@ function openReviewModal(id) {
     if (!c) return;
     dispatchSelectedOfficerId = null;
 
-    const officerCards = OFFICERS_DATA.map(o => {
+    const officerCards = FIELD_OFFICERS_DATA.map(o => {
         const blocked = parseInt(o.is_assigned) === 1;
         const statusLabel = blocked ? '⬤ On Assignment' : (o.status === 'available' ? '● Available' : `○ ${o.status}`);
         const statusClass = blocked ? 'busy' : (o.status === 'available' ? 'available' : 'busy');
@@ -416,7 +436,7 @@ async function confirmVerifyAssign(id) {
         showToast('Please select a field officer before assigning.');
         return;
     }
-    const officer = OFFICERS_DATA.find(o => o.id === dispatchSelectedOfficerId);
+    const officer = FIELD_OFFICERS_DATA.find(o => o.id === dispatchSelectedOfficerId);
     closeModal();
     try {
         await apiFetch('dispatch.php', {action: 'verifyAssign', id, officer_id: dispatchSelectedOfficerId}, 'POST');
@@ -435,7 +455,7 @@ function openVerifyModal(id) {
     if (!c) return;
     dispatchSelectedOfficerId = null;
 
-    const officerCards = OFFICERS_DATA.map(o => {
+    const officerCards = FIELD_OFFICERS_DATA.map(o => {
         const blocked = parseInt(o.is_assigned) === 1;
         const statusLabel = blocked ? '⬤ On Assignment' : (o.status === 'available' ? '● Available' : `○ ${o.status}`);
         const statusClass = blocked ? 'busy' : (o.status === 'available' ? 'available' : 'busy');
@@ -482,7 +502,7 @@ async function confirmVerifyModal(id) {
         showToast('Please select an officer first.');
         return;
     }
-    const officer = OFFICERS_DATA.find(o => o.id === dispatchSelectedOfficerId);
+    const officer = FIELD_OFFICERS_DATA.find(o => o.id === dispatchSelectedOfficerId);
     closeModal();
     try {
         await apiFetch('dispatch.php', {action: 'verifyAssign', id, officer_id: dispatchSelectedOfficerId}, 'POST');
@@ -538,7 +558,7 @@ async function submitReject(id) {
 }
 
 async function reassignCase(id) {
-    const availableOfficers = OFFICERS_DATA.filter(o => o.status === 'available');
+    const availableOfficers = FIELD_OFFICERS_DATA.filter(o => o.status === 'available');
     if (!availableOfficers.length) {
         showToast('No available officers to reassign.');
         return;
@@ -653,28 +673,28 @@ function renderOfficers() {
           <div class="officer-avatar-lg">${safeText(o.code.slice(-2) || o.name.split(' ').map(x => x[0]).join(''))}</div>
           <div style="flex:1">
             <div class="officer-full-name">${safeText(o.name)}</div>
-            <div class="officer-full-brgy">Brgy. ${safeText(o.brgy)}</div>
+            <div class="officer-full-brgy">${_officerRoleLabel(o)} · Brgy. ${safeText(o.brgy || 'N/A')}</div>
           </div>
-          <span class="badge ${o.status === 'available' ? 'badge-verified' : 'badge-assigned'}">${safeText(o.status)}</span>
+          <span class="badge ${_badgeClassByStatus(o.status)}">${safeText(o.status)}</span>
         </div>
         <div class="officer-stats-row">
           <div class="officer-stat-box">
             <div class="officer-stat-val">${safeText(o.cases_closed ?? 0)}</div>
-            <div class="officer-stat-label">Active Cases</div>
+            <div class="officer-stat-label">Handled</div>
           </div>
           <div class="officer-stat-box">
-            <div class="officer-stat-val">${safeText(o.rating ?? 0)}%</div>
-            <div class="officer-stat-label">Satisfaction</div>
+            <div class="officer-stat-val">${safeText(o.rating ?? 0)}</div>
+            <div class="officer-stat-label">Score</div>
           </div>
           <div class="officer-stat-box">
-            <div class="officer-stat-val">${safeText(o.status === 'available' ? 'Ready' : 'Busy')}</div>
+            <div class="officer-stat-val">${safeText(_officerRoleLabel(o))}</div>
             <div class="officer-stat-label">Duty</div>
           </div>
         </div>
         ${perfBar('Workload', Math.min(100, (o.cases_closed ?? 0) * 12))}
         <div style="display:flex;gap:8px;margin-top:12px">
           <button class="btn-secondary btn-sm" style="flex:1" onclick="showToast('Viewing cases for ${safeText(o.name)}')">View Cases</button>
-          <button class="btn-secondary btn-sm" style="flex:1" onclick="openChatModal('${safeText(o.id)}','${safeText(o.name)}')">Contact</button>
+          <button class="btn-secondary btn-sm" style="flex:1" onclick="openChatModal('${safeText(o.id)}','${safeText(o.name)}','${o.officer_role === 'dispatch_officer' ? 'dispatch' : 'field'}')">Contact</button>
         </div>
       </div>`).join('');
 }
@@ -698,9 +718,9 @@ function renderAnalytics() {
             <div class="officer-initials" style="width:32px;height:32px;font-size:11px">${safeText(o.code.slice(-2) || o.name.split(' ').map(x => x[0]).join(''))}</div>
             <div style="flex:1">
               <div style="font-size:13px;font-weight:600">${safeText(o.name)}</div>
-              <div class="mono" style="font-size:11px;color:var(--mist)">On-time: ${safeText(o.rating ?? 0)}%</div>
+              <div class="mono" style="font-size:11px;color:var(--mist)">${_officerRoleLabel(o)} score: ${safeText(o.rating ?? 0)}</div>
             </div>
-            <div style="font-family:var(--font-head);font-size:22px;font-weight:800;color:var(--green)">${safeText(o.rating ?? 0)}%</div>
+            <div style="font-family:var(--font-head);font-size:22px;font-weight:800;color:var(--green)">${safeText(o.rating ?? 0)}</div>
           </div>`).join('');
     }
 
@@ -866,30 +886,32 @@ function viewActivityLog() {
       </div>`);
 }
 
-function openChatModal(officerId, officerName) {
+function openChatModal(officerId, officerName, receiverRole = 'field') {
     if (!officerId) {
         showToast('Officer ID is required for chat.');
         return;
     }
-    activeChat = {receiverRole: 'officer', receiverId: officerId, name: officerName};
+    activeChat = {receiverRole, receiverId: officerId, name: officerName};
     chatLastId = 0;
     loadChatThread();
     startChatPolling();
 
     openModal(`
       <div class="modal-overlay" onclick="if(event.target===this) { closeModal(); stopChatPolling(); }">
-        <div class="modal" style="max-width:520px;min-height:520px">
+        <div class="modal" style="max-width:560px;min-height:560px;padding:0;overflow:hidden">
           <div class="modal-head">
             <div>
-              <div class="modal-title">Dispatch Chat</div>
+              <div class="modal-title">Dispatch Messenger</div>
               <div class="modal-subtitle">Chat with ${safeText(officerName)}</div>
             </div>
             <button class="modal-close" onclick="closeModal(); stopChatPolling();">✕</button>
           </div>
-          <div class="modal-body" id="chat-body" style="min-height:320px;overflow:auto;padding:12px"></div>
-          <div class="modal-footer" style="display:flex;gap:10px;align-items:center">
-            <input id="chat-input" class="form-input" type="text" placeholder="Type a message…" style="flex:1" onkeydown="if(event.key==='Enter') sendChatMessage();" />
-            <button class="btn-primary" onclick="sendChatMessage()">Send</button>
+          <div class="msg-shell">
+            <div class="msg-body" id="chat-body"></div>
+            <div class="msg-composer">
+              <input id="chat-input" class="form-input msg-input" type="text" placeholder="Type a message…" onkeydown="if(event.key==='Enter') sendChatMessage();" />
+              <button class="btn-primary" onclick="sendChatMessage()">Send</button>
+            </div>
           </div>
         </div>
       </div>`);
@@ -912,7 +934,7 @@ function renderChatMessages(messages) {
     if (!body) return;
     body.innerHTML = messages.map(msg => {
         const isSent = msg.senderRole === 'dispatch';
-        return `<div class="chat-message ${isSent ? 'chat-sent' : 'chat-received'}"><div>${safeText(msg.message)}</div><div class="chat-meta">${formatDateTime(msg.sentAt)}</div></div>`;
+    return `<div class="chat-row ${isSent ? 'mine' : 'theirs'}"><div class="chat-bubble ${isSent ? 'chat-sent' : 'chat-received'}"><div>${safeText(msg.message)}</div><div class="chat-meta">${formatDateTime(msg.sentAt)}</div></div></div>`;
     }).join('');
     body.scrollTop = body.scrollHeight;
 }
@@ -945,7 +967,8 @@ function startChatPolling() {
             const messages = resp.messages || [];
             if (messages.length) {
                 chatLastId = messages[messages.length - 1].id;
-                renderChatMessages(messages);
+                             showNotification('New message from ' + (activeChat.name || 'Field Officer'), 'You have a new message');
+              await loadChatThread();
             }
         } catch (error) {
             console.warn('Chat polling error:', error.message);
@@ -957,6 +980,20 @@ function stopChatPolling() {
     if (chatInterval) {
         clearInterval(chatInterval);
         chatInterval = null;
+
+    function showNotification(title, message) {
+      const container = document.getElementById('notif-panel') || document.querySelector('.notif-panel');
+      if (!container) return;
+    
+      const item = document.createElement('div');
+      item.className = 'notif-item';
+      item.innerHTML = `<div class="notif-dot-inline"></div><div><div class="notif-msg">${safeText(title)}</div><div class="notif-time">${safeText(message)}</div></div>`;
+      container.insertBefore(item, container.querySelector('.notif-item') || container.firstChild);
+    
+      while (container.querySelectorAll('.notif-item').length > 5) {
+        container.lastChild?.remove();
+      }
+    }
     }
 }
 

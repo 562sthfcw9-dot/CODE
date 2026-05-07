@@ -3,6 +3,27 @@
    Mobile-first optimized for first responders
    ============================================================ */
 
+/* ── LEAFLET MAP ZOOM CONTROLS ────────────────────────────── */
+.leaflet-control-zoom {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+  border: 1px solid var(--border) !important;
+}
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out {
+  background-color: var(--white) !important;
+  color: var(--ink) !important;
+  border-radius: 4px !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  width: 36px !important;
+  height: 36px !important;
+}
+.leaflet-control-zoom-in:hover,
+.leaflet-control-zoom-out:hover {
+  background-color: var(--surface) !important;
+  color: var(--accent) !important;
+}
+
 /* ── ACTIVE JOB CARD ───────────────────────────────────────── */
 .active-job-card {
   background: var(--white);
@@ -125,6 +146,76 @@
 .rating-empty  { color: var(--border); }
 .rating-quote  { font-size: 13px; color: var(--steel); line-height: 1.5; }
 .rating-meta   { font-family: var(--font-mono); font-size: 11px; color: var(--mist); margin-top: 6px; }
+
+/* ── MESSENGER CHAT ───────────────────────────────────────── */
+.msg-shell {
+  height: 480px;
+  display: flex;
+  flex-direction: column;
+  background: #f4f6fb;
+}
+
+.msg-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chat-row {
+  display: flex;
+}
+
+.chat-row.mine {
+  justify-content: flex-end;
+}
+
+.chat-row.theirs {
+  justify-content: flex-start;
+}
+
+.chat-bubble {
+  max-width: min(78%, 420px);
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.chat-sent {
+  background: #0a66ff;
+  color: #ffffff;
+  border-bottom-right-radius: 6px;
+}
+
+.chat-received {
+  background: #ffffff;
+  color: #1a1a1a;
+  border: 1px solid #dfe4ef;
+  border-bottom-left-radius: 6px;
+}
+
+.chat-meta {
+  margin-top: 4px;
+  font-size: 10px;
+  opacity: 0.75;
+}
+
+.msg-composer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  background: #ffffff;
+  border-top: 1px solid #dde3ef;
+}
+
+.msg-input {
+  border-radius: 999px;
+}
 
 /* ── MOBILE-FIRST OPTIMIZATIONS ────────────────────────────── */
 

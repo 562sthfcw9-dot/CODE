@@ -52,12 +52,13 @@ if ($action === 'queue') {
 }
 
 if ($action === 'officers') {
-    $stmt = $db->query(
+    $fieldStmt = $db->query(
         "SELECT f.officer_id AS id, f.badge_number AS code, u.full_name AS name,
                 f.assigned_barangay AS brgy, f.is_available AS status,
                 f.current_latitude AS lat, f.current_longitude AS lng,
                 f.gps_last_updated, f.total_resolved AS cases_closed,
                 f.average_user_rating AS rating,
+                'field_officer' AS officer_role,
                 CASE WHEN EXISTS (
                     SELECT 1 FROM Assignments a
                     WHERE a.field_officer_id = f.officer_id
@@ -68,7 +69,33 @@ if ($action === 'officers') {
          WHERE u.is_active = 1
          ORDER BY f.is_available ASC, f.total_resolved DESC"
     );
-    successResponse(['officers' => $stmt->fetchAll()]);
+
+    $dispatchStmt = $db->query(
+        "SELECT d.dispatch_id AS id, d.badge_number AS code, u.full_name AS name,
+                d.assigned_barangay AS brgy,
+                CASE WHEN d.is_on_duty = 1 THEN 'on_duty' ELSE 'off_duty' END AS status,
+                NULL AS lat, NULL AS lng,
+                NULL AS gps_last_updated,
+                d.total_complaints_handled AS cases_closed,
+                d.total_validated AS rating,
+                'dispatch_officer' AS officer_role,
+                0 AS is_assigned
+         FROM Dispatch_officers d
+         JOIN Users u ON u.user_id = d.user_id
+         WHERE u.is_active = 1
+         ORDER BY d.is_on_duty DESC, d.total_complaints_handled DESC"
+    );
+
+    $fieldOfficers = $fieldStmt->fetchAll();
+    $dispatchOfficers = $dispatchStmt->fetchAll();
+    $allOfficers = array_merge($fieldOfficers, $dispatchOfficers);
+
+    successResponse([
+        'officers' => $fieldOfficers,
+        'field_officers' => $fieldOfficers,
+        'dispatch_officers' => $dispatchOfficers,
+        'all_officers' => $allOfficers,
+    ]);
 }
 
 if ($action === 'verifyAssign') {

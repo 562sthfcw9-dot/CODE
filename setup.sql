@@ -277,7 +277,24 @@ CREATE TABLE IF NOT EXISTS Notifications (
 );
 
 -- ============================================================
--- 15. PASSWORD_RESET_TOKENS
+-- 15. CHAT_MESSAGES (Live messaging between field and dispatch roles)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS chat_messages (
+    message_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    conversation_key VARCHAR(128) NOT NULL,
+    sender_role VARCHAR(32) NOT NULL,
+    sender_id INT UNSIGNED NOT NULL,
+    receiver_role VARCHAR(32) NOT NULL,
+    receiver_id INT UNSIGNED NOT NULL,
+    message_text TEXT NOT NULL,
+    sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_conversation (conversation_key, message_id),
+    INDEX idx_sender (sender_role, sender_id),
+    INDEX idx_receiver (receiver_role, receiver_id)
+);
+
+-- ============================================================
+-- 16. PASSWORD_RESET_TOKENS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
     token_id INT AUTO_INCREMENT PRIMARY KEY,
