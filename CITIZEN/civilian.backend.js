@@ -15,6 +15,7 @@ let complaintMap = null;
 let complaintMapMarker = null;
 let pinnedLat = null;
 let pinnedLng = null;
+let latestEvidenceCapturedAt = null;
 
 function setPinnedLocation(lat, lng, zoom = 17, prefix = 'Pinned') {
     pinnedLat = Number(lat);
@@ -81,9 +82,7 @@ async function initCivilian() {
     document.getElementById('sb-name').textContent = displayName;
     document.getElementById('topbar-username').textContent = displayName;
 
-    /* set today's date as default */
-    const todayInput = document.getElementById('f-date');
-    if (todayInput) todayInput.value = new Date().toISOString().slice(0, 10);
+    autoFillIncidentDateTime(new Date(), 'Auto-updated: current time');
 
     /* wrap setActivePage to trigger map init when report page opens */
     const _base = window.setActivePage;
@@ -296,10 +295,11 @@ function buildReviewSummary() {
     const time = document.getElementById('f-time')?.value || '—';
     const priority = selectedPriority.charAt(0).toUpperCase() + selectedPriority.slice(1);
     const anon = document.getElementById('anon-toggle')?.checked ? 'Yes' : 'No';
+        const evidenceCount = uploadedFiles.length;
 
     document.getElementById('review-summary').innerHTML = `
       <div class="review-summary-title">Review Your Submission</div>
-      ${[['Category', cat], ['Barangay', brgy], ['Address', address], ['Date', date], ['Time', time], ['Priority', priority], ['Anonymous', anon]].map(([l, v]) => `
+            ${[['Category', cat], ['Barangay', brgy], ['Address', address], ['Date', date], ['Time', time], ['Priority', priority], ['Anonymous', anon], ['Evidence', evidenceCount ? `${evidenceCount} file(s)` : 'None']].map(([l, v]) => `
         <div class="review-row">
           <span class="review-label">${safeText(l)}:</span>
           <span class="review-value">${safeText(v)}</span>
@@ -318,6 +318,11 @@ async function submitComplaint() {
     if (!category || !barangay || !address || !date || !time) {
         showToast('Please complete all complaint fields before submitting.');
         goToStep(2);
+        return;
+    }
+    if (!uploadedFiles.length) {
+        showToast('Please upload at least one evidence file before submitting your complaint.');
+        goToStep(3);
         return;
     }
     if (desc.length < 50) {
@@ -354,6 +359,7 @@ async function submitComplaint() {
         
         /* reset form */
         uploadedFiles = [];
+        latestEvidenceCapturedAt = null;
         pinnedLat = null; pinnedLng = null;
         if (complaintMapMarker) { complaintMapMarker.remove(); complaintMapMarker = null; }
         const pinLabel = document.getElementById('pin-coords-label');
@@ -361,8 +367,7 @@ async function submitComplaint() {
         document.getElementById('f-cat').value = '';
         document.getElementById('f-address').value = '';
         document.getElementById('f-desc').value = '';
-        document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
-        document.getElementById('f-time').value = '';
+        autoFillIncidentDateTime(new Date(), 'Auto-updated: current time');
         document.getElementById('anon-toggle').checked = false;
         document.getElementById('anon-warning').classList.add('hidden');
         document.getElementById('upload-status').textContent = '';
@@ -519,6 +524,50 @@ async function updatePassword() {
 
 /* ── FILE UPLOAD ───────────────────────────────────────────── */
 let uploadedFiles = [];
+const MAX_EVIDENCE_FILES = 3;
+const MIN_EVIDENCE_SIZE_BYTES = 1024;
+const MAX_EVIDENCE_SIZE_BYTES = 50 * 1024 * 1024;
+
+function toDatetimeLocalParts(dateObj) {
+    const d = dateObj;
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    return {
+        date: `${yyyy}-${mm}-${dd}`,
+        time: `${hh}:${mi}`,
+    };
+}
+
+function autoFillIncidentDateTime(dateObj, metaText) {
+    const dateInput = document.getElementById('f-date');
+    const timeInput = document.getElementById('f-time');
+    const metaEl = document.getElementById('incident-time-meta');
+    if (!dateInput || !timeInput || !dateObj) return;
+
+    const parts = toDatetimeLocalParts(dateObj);
+    dateInput.value = parts.date;
+    timeInput.value = parts.time;
+    if (metaEl) {
+        metaEl.textContent = metaText || `Auto-updated: ${parts.time}`;
+    }
+}
+
+function getEvidenceCapturedAt(file) {
+    if (!file) return new Date();
+    if (file.lastModified && Number.isFinite(file.lastModified)) {
+        return new Date(file.lastModified);
+    }
+    return new Date();
+}
+
+function openEvidencePicker() {
+    const evidenceInput = document.getElementById('evidence-upload');
+    if (!evidenceInput) return;
+    evidenceInput.click();
+}
 
 function initUploadBox() {
     const uploadBox = document.getElementById('upload-box');
@@ -527,13 +576,6 @@ function initUploadBox() {
         console.warn('Upload box or file input not found');
         return;
     }
-    
-    // Click upload box to trigger file input
-    uploadBox.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        evidenceInput.click();
-    });
     
     uploadBox.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -570,28 +612,40 @@ function initUploadBox() {
 }
 
 async function handleFileUpload(event) {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-    
-    const file = files[0];
-    const maxSize = 50 * 1024 * 1024; // 50MB
-    
-    if (file.size > maxSize) {
-        showToast('File size exceeds 50MB limit.');
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    if (uploadedFiles.length >= MAX_EVIDENCE_FILES) {
+        showToast(`You can upload up to ${MAX_EVIDENCE_FILES} evidence files only.`);
+        event.target.value = '';
         return;
     }
-    
-    if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime'].includes(file.type)) {
-        showToast('Only JPG, PNG, GIF, WebP, and MP4 files are allowed.');
-        return;
+
+    const remainingSlots = MAX_EVIDENCE_FILES - uploadedFiles.length;
+    const selected = files.slice(0, remainingSlots);
+    if (files.length > remainingSlots) {
+        showToast(`Only ${remainingSlots} more file(s) can be added (max ${MAX_EVIDENCE_FILES}).`);
     }
-    
-    await uploadEvidence(file);
+
+    for (const file of selected) {
+        if (file.size < MIN_EVIDENCE_SIZE_BYTES || file.size > MAX_EVIDENCE_SIZE_BYTES) {
+            showToast(`"${file.name}" must be between 1KB and 50MB.`);
+            continue;
+        }
+
+        if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime'].includes(file.type)) {
+            showToast(`"${file.name}" is not supported. Use JPG, PNG, GIF, WebP, MP4, or MOV.`);
+            continue;
+        }
+
+        await uploadEvidence(file);
+    }
+
+    event.target.value = '';
 }
 
 async function uploadEvidence(file) {
-    const progressBar = document.getElementById('upload-progress-bar');
-    const progressContainer = document.getElementById('upload-progress-bar').parentElement;
+    const progressContainer = document.getElementById('upload-progress-bar');
     const statusEl = document.getElementById('upload-status');
     const filesContainer = document.getElementById('uploaded-files');
     
@@ -616,12 +670,17 @@ async function uploadEvidence(file) {
                 try {
                     const response = JSON.parse(xhr.responseText);
                     if (response.success) {
+                        const capturedAt = getEvidenceCapturedAt(file);
+                        latestEvidenceCapturedAt = capturedAt;
+                        autoFillIncidentDateTime(capturedAt, `Auto-updated: ${toDatetimeLocalParts(capturedAt).time}`);
+
                         uploadedFiles.push({
                             filename: response.filename,
                             url: response.url,
-                            type: file.type
+                            type: file.type,
+                            captured_at: capturedAt.toISOString(),
                         });
-                        statusEl.textContent = `✓ ${file.name} uploaded successfully.`;
+                        statusEl.textContent = `✓ ${file.name} uploaded successfully. (${uploadedFiles.length}/${MAX_EVIDENCE_FILES}) Incident date/time auto-set from evidence metadata.`;
                         filesContainer.innerHTML = uploadedFiles.map((f, i) => `
                             <div style="display:flex;gap:8px;align-items:center;padding:8px;background:var(--surface);border-radius:4px;font-size:12px;margin-bottom:6px">
                                 <span>${f.type.includes('video') ? '🎬' : '📷'}</span>

@@ -10,6 +10,7 @@ if ($action === 'upload_evidence') {
     }
 
     $file = $_FILES['file'];
+    $minSize = 1024; // 1KB
     $maxSize = 50 * 1024 * 1024; // 50MB
     $allowedTypes = [
         'image/jpeg', 'image/jpg', 'image/pjpeg', 'image/png', 'image/gif', 'image/webp',
@@ -17,8 +18,8 @@ if ($action === 'upload_evidence') {
     ];
     $allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'm4v'];
 
-    if ($file['size'] > $maxSize) {
-        errorResponse('File size exceeds 50MB limit.');
+    if ($file['size'] < $minSize || $file['size'] > $maxSize) {
+        errorResponse('File size must be between 1KB and 50MB.');
     }
 
     $ext = strtolower((string)pathinfo($file['name'], PATHINFO_EXTENSION));

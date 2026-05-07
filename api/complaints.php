@@ -63,9 +63,16 @@ if ($action === 'submit') {
     $description = trim((string)($data['description'] ?? ''));
     $priority    = trim((string)($data['priority'] ?? 'medium'));
     $anonymous   = isset($data['anonymous']) ? boolval($data['anonymous']) : false;
+    $media       = $data['media'] ?? null;
 
     if ($category === '' || $barangay === '' || $address === '' || $date === '' || $time === '' || strlen($description) < 50) {
         errorResponse('All complaint fields are required (min 50 characters for description).');
+    }
+    if (!is_array($media) || count($media) === 0) {
+        errorResponse('At least one evidence file is required before submitting a complaint.');
+    }
+    if (count($media) > 3) {
+        errorResponse('You can upload up to 3 evidence files only.');
     }
 
     $pinnedLat = isset($data['lat']) && is_numeric($data['lat']) ? (float)$data['lat'] : null;
@@ -75,6 +82,15 @@ if ($action === 'submit') {
 
     $trackingId = buildTrackingNumber($db);
     $dateField  = date('Y-m-d H:i:s', strtotime($date . ' ' . $time));
+
+    $firstMedia = $media[0] ?? null;
+    $capturedAt = trim((string)($firstMedia['captured_at'] ?? ''));
+    if ($capturedAt !== '') {
+        $capturedTs = strtotime($capturedAt);
+        if ($capturedTs !== false) {
+            $dateField = date('Y-m-d H:i:s', $capturedTs);
+        }
+    }
     $userId     = (int)($user['user_id'] ?? $user['id'] ?? 0);
 
     // Check for duplicate from same user with same category and similar description
@@ -116,15 +132,15 @@ if ($action === 'submit') {
        ->execute([':cid' => $newComplaintId, ':uid' => $userId, ':status' => 'submitted', ':notes' => 'Complaint submitted by user.']);
 
     // Insert media files if provided
-    if (!empty($data['media']) && is_array($data['media'])) {
+    if (!empty($media) && is_array($media)) {
         $mediaStmt = $db->prepare(
             'INSERT INTO Media (complaint_id, file_url, file_type, uploaded_by_role)
              VALUES (:cid, :url, :type, :role)'
         );
-        foreach ($data['media'] as $media) {
-            $fileUrl = $media['url'] ?? $media['filename'] ?? '';
+        foreach ($media as $mediaRow) {
+            $fileUrl = $mediaRow['url'] ?? $mediaRow['filename'] ?? '';
             if ($fileUrl !== '') {
-                $fileType = strpos($media['type'], 'video') !== false ? 'video' : 'photo';
+                $fileType = strpos((string)($mediaRow['type'] ?? ''), 'video') !== false ? 'video' : 'photo';
                 $mediaStmt->execute([
                     ':cid' => $newComplaintId,
                     ':url' => $fileUrl,
