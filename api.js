@@ -5,7 +5,28 @@
 'use strict';
 
 const APP_BASE = /\/(CITIZEN|DISPATCH|FIELD)\//i.test(window.location.pathname) ? '..' : '.';
-const API_BASE = `${APP_BASE}/api`;
+let ACTIVE_API_BASE = null;
+
+function buildApiCandidates() {
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    const candidates = [
+        `${APP_BASE}/api`,
+        '/api',
+        '/CODE/api',
+        '/Trapico/CODE/api',
+    ];
+
+    if (parts.length >= 1) {
+        candidates.push(`/${parts[0]}/api`);
+    }
+    if (parts.length >= 2) {
+        candidates.push(`/${parts[0]}/${parts[1]}/api`);
+    }
+
+    return [...new Set(candidates.map(s => String(s).replace(/\/+$/, '')))];
+}
+
+const API_BASE_CANDIDATES = buildApiCandidates();
 
 function appHref(path) {
     const normalized = String(path || '').replace(/^\/+/, '');
@@ -20,28 +41,53 @@ function buildQuery(params) {
 }
 
 async function apiFetch(endpoint, data = null, method = 'GET') {
-    const url = `${API_BASE}/${endpoint}`;
+    const normalizedMethod = String(method || 'GET').toUpperCase();
     const options = {
-        method,
+        method: normalizedMethod,
         credentials: 'include',
     };
 
-    if (method === 'GET') {
-        if (data && typeof data === 'object' && Object.keys(data).length > 0) {
-            const qs = buildQuery(data);
-            return rawFetch(`${url}?${qs}`, options);
+    if (normalizedMethod !== 'GET') {
+        if (data instanceof FormData) {
+            options.body = data;
+        } else {
+            options.headers = {'Content-Type': 'application/json'};
+            options.body = JSON.stringify(data || {});
         }
-        return rawFetch(url, options);
     }
 
-    if (data instanceof FormData) {
-        options.body = data;
-    } else {
-        options.headers = {'Content-Type': 'application/json'};
-        options.body = JSON.stringify(data || {});
+    const baseOrder = ACTIVE_API_BASE
+        ? [ACTIVE_API_BASE, ...API_BASE_CANDIDATES.filter(b => b !== ACTIVE_API_BASE)]
+        : API_BASE_CANDIDATES;
+
+    let lastError = null;
+    for (const base of baseOrder) {
+        const url = `${base}/${endpoint}`;
+        const finalUrl = normalizedMethod === 'GET' && data && typeof data === 'object' && Object.keys(data).length > 0
+            ? `${url}?${buildQuery(data)}`
+            : url;
+
+        try {
+            const result = await rawFetch(finalUrl, options);
+            ACTIVE_API_BASE = base;
+            return result;
+        } catch (error) {
+            lastError = error;
+            if (error?.code === 'INVALID_PATH') {
+                continue;
+            }
+            throw error;
+        }
     }
 
-    return rawFetch(url, options);
+    if (lastError) throw lastError;
+    throw new Error('Unable to locate a valid API path.');
+}
+
+function apiPathError(message) {
+    const err = new Error(message);
+    err.code = 'INVALID_PATH';
+    return err;
 }
 
 async function rawFetch(url, options) {
@@ -53,7 +99,7 @@ async function rawFetch(url, options) {
     } catch (error) {
         const looksLikeHtml = /^\s*</.test(text);
         if (res.status === 404 || looksLikeHtml) {
-            throw new Error('Invalid server response (likely wrong URL path). Open the app via localhost and check that api/register.php exists under your project folder.');
+            throw apiPathError('Invalid server response (likely wrong URL path). Open the app via localhost and check that api/register.php exists under your project folder.');
         }
         throw new Error(`Invalid server response (HTTP ${res.status})`);
     }
@@ -153,30 +199,43 @@ function addApiHealthCheckUI() {
     btn.addEventListener('click', async () => {
         btn.disabled = true;
         btn.textContent = 'CHECKING...';
-        showHealthMessage(msg, `Checking ${API_BASE}/register.php`, false);
+        showHealthMessage(msg, `Checking ${API_BASE_CANDIDATES.join(' , ')}/register.php`, false);
 
         try {
-            const res = await fetch(`${API_BASE}/register.php`, {
-                method: 'GET',
-                credentials: 'include',
-            });
-            const raw = await res.text();
+            let okBase = null;
+            let lastStatus = 0;
+            let lastPreview = 'empty response';
 
-            let parsed = null;
-            try {
-                parsed = raw ? JSON.parse(raw) : null;
-            } catch (error) {
-                parsed = null;
+            for (const base of API_BASE_CANDIDATES) {
+                const res = await fetch(`${base}/register.php`, {
+                    method: 'GET',
+                    credentials: 'include',
+                });
+                const raw = await res.text();
+                let parsed = null;
+                try {
+                    parsed = raw ? JSON.parse(raw) : null;
+                } catch (error) {
+                    parsed = null;
+                }
+
+                if (parsed && typeof parsed === 'object') {
+                    okBase = base;
+                    ACTIVE_API_BASE = base;
+                    break;
+                }
+
+                lastStatus = res.status;
+                lastPreview = raw ? raw.slice(0, 120).replace(/\s+/g, ' ') : 'empty response';
             }
 
-            if (parsed && typeof parsed === 'object') {
-                showHealthMessage(msg, `API reachable at ${API_BASE}/register.php. JSON response received.`, false);
+            if (okBase) {
+                showHealthMessage(msg, `API reachable at ${okBase}/register.php. JSON response received.`, false);
             } else {
-                const preview = raw ? raw.slice(0, 120).replace(/\s+/g, ' ') : 'empty response';
-                showHealthMessage(msg, `API not returning JSON at ${API_BASE}/register.php (HTTP ${res.status}). First bytes: ${preview}`, true);
+                showHealthMessage(msg, `API not returning JSON on known paths (last HTTP ${lastStatus}). First bytes: ${lastPreview}`, true);
             }
         } catch (error) {
-            showHealthMessage(msg, `Request failed for ${API_BASE}/register.php. ${error?.message || 'Network or URL issue.'}`, true);
+            showHealthMessage(msg, `Request failed while checking API paths. ${error?.message || 'Network or URL issue.'}`, true);
         } finally {
             btn.disabled = false;
             btn.textContent = 'API HEALTH CHECK';
