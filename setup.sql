@@ -2,6 +2,7 @@
 CREATE DATABASE trapico CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE trapico;
 
+
 -- ============================================================
 -- 1. USERS (Central identity table - base for all four roles)
 -- ============================================================
