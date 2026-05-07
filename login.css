@@ -219,6 +219,140 @@
   margin-top: -2px;
 }
 
+body[data-role="dispatch"] .forgot-inline-notif {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #d72b3e;
+  background: #fff1f3;
+  color: #8d1021;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+body[data-role="dispatch"] .forgot-inline-close {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: transparent;
+  color: #111111;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+/* ── DISPATCH SIGN-IN IMAGE MATCH ─────────────────────────── */
+body[data-role="dispatch"] .login-page {
+  background: #000;
+}
+
+body[data-role="dispatch"] .login-left-inner {
+  padding: 70px 64px 56px;
+}
+
+body[data-role="dispatch"] .login-badge {
+  border-radius: 0;
+  padding: 6px 14px;
+  margin-bottom: 34px;
+  box-shadow: none;
+}
+
+body[data-role="dispatch"] .login-title {
+  font-size: clamp(78px, 8.3vw, 116px);
+  margin-bottom: 22px;
+}
+
+body[data-role="dispatch"] .login-sub {
+  max-width: 500px;
+  color: #8f959f;
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 58px;
+}
+
+body[data-role="dispatch"] .login-stat-val {
+  font-size: 44px;
+}
+
+body[data-role="dispatch"] .login-stat-label {
+  color: #8f959f;
+}
+
+body[data-role="dispatch"] .login-watermark {
+  left: 44px;
+  right: auto;
+  top: auto;
+  bottom: -18px;
+  transform: none;
+  font-size: clamp(176px, 21vw, 280px);
+  color: #0f1115;
+}
+
+body[data-role="dispatch"] .login-right {
+  background: #efefef;
+  padding: 48px 64px;
+}
+
+body[data-role="dispatch"] .login-panel {
+  width: min(100%, 560px);
+}
+
+body[data-role="dispatch"] .login-kicker {
+  display: none;
+}
+
+body[data-role="dispatch"] .login-form-title {
+  margin-bottom: 20px;
+  font-size: 42px;
+  letter-spacing: -0.02em;
+}
+
+body[data-role="dispatch"] .login-form {
+  gap: 14px;
+}
+
+body[data-role="dispatch"] .login-label {
+  margin-bottom: 6px;
+  color: #111;
+  letter-spacing: 0.08em;
+}
+
+body[data-role="dispatch"] .login-input {
+  height: 46px;
+  border-radius: 4px;
+  border-color: #c8ccd1;
+  background: #ededed;
+}
+
+body[data-role="dispatch"] .login-input:focus {
+  border-color: #9ea4ab;
+  box-shadow: none;
+}
+
+body[data-role="dispatch"] .forgot-link {
+  color: #111;
+}
+
+body[data-role="dispatch"] .login-submit {
+  height: 48px;
+  margin-top: 10px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+
+body[data-role="dispatch"] .login-footer-copy {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+body[data-role="dispatch"] .signup-link {
+  color: #111;
+  font-weight: 700;
+}
+
 .forgot-link {
   color: #505050;
   font-family: var(--font-mono);

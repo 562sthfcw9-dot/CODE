@@ -160,7 +160,7 @@ function renderActiveCases() {
           <div class="active-case-meta">${c.cat} · Brgy. ${c.brgy} · ${c.date}</div>
         </div>
         <div style="display:flex;gap:8px">
-          <button class="btn-secondary btn-sm" onclick="openReviewModal('${c.id}')">Details</button>
+          <button class="btn-secondary btn-sm" onclick="openCaseTimelineModal('${c.id}')">CASE TIMELINE</button>
           ${c.status === 'assigned' ? `<button class="btn-danger btn-sm" onclick="reassignCase('${c.id}')">Reassign</button>` : ''}
         </div>
       </div>
@@ -182,6 +182,77 @@ function renderActiveCases() {
     </div>`).join('');
 
   startAllCountdowns();
+}
+
+function buildCaseTimelineItems(statusValue, complaintDate) {
+  const statusOrder = ['submitted', 'verified', 'assigned', 'en_route', 'in_progress', 'resolved', 'validated', 'closed'];
+  const titleMap = {
+    submitted: 'Submitted',
+    verified: 'Verified',
+    assigned: 'Assigned',
+    en_route: 'En Route',
+    in_progress: 'In Progress',
+    resolved: 'Resolved',
+    validated: 'Validated',
+    closed: 'Closed',
+  };
+  const noteMap = {
+    submitted: 'Complaint received. Tracking ID generated.',
+    verified: 'Dispatch Officer validated complaint details.',
+    assigned: 'Assigned to Ofc. Ramon Reyes.',
+    en_route: 'Officer departed to incident site.',
+    in_progress: 'Officer checked in at incident site (GPS confirmed).',
+    resolved: 'Resolution report submitted by officer.',
+    validated: 'Dispatch Officer confirmed resolution.',
+    closed: 'Case officially closed.',
+  };
+
+  const currentIdx = statusOrder.indexOf(String(statusValue || '').toLowerCase());
+
+  return statusOrder.map((status, idx) => {
+    const reached = currentIdx >= 0 && idx <= currentIdx;
+    const ts = idx === 0 ? (complaintDate || '--') : '--';
+    return `
+      <div class="dispatch-timeline-item ${reached ? 'done' : 'pending'}">
+        <div class="dispatch-timeline-dot"></div>
+        <div class="dispatch-timeline-content">
+          <div class="dispatch-timeline-title">${titleMap[status]}</div>
+          <div class="dispatch-timeline-time">${ts}</div>
+          <div class="dispatch-timeline-note">${noteMap[status]}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleCaseTimeline(id) {
+  const c = COMPLAINTS.find(x => x.id === id);
+  if (!c) return;
+
+  openModal(`
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal modal-lg">
+        <div class="modal-head">
+          <div>
+            <div class="modal-title">Case Timeline</div>
+            <div class="modal-subtitle">${c.id}</div>
+          </div>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="dispatch-timeline-wrap">
+            <div class="dispatch-timeline-heading">CASE TIMELINE</div>
+            ${buildCaseTimelineItems(c.status, c.date)}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closeModal()">Close</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+function openCaseTimelineModal(id) {
+  toggleCaseTimeline(id);
 }
 
 /* ── FIELD OFFICERS ────────────────────────────────────────── */

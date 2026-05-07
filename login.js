@@ -52,7 +52,17 @@ function togglePasswordVisibility() {
 
 function openForgotModal(event) {
   event.preventDefault();
+  if (selectedRole === 'dispatch') {
+    const notif = document.getElementById('forgot-inline-notif');
+    if (notif) notif.classList.remove('hidden');
+    return;
+  }
   document.getElementById('forgot-modal-overlay').classList.remove('hidden');
+}
+
+function dismissForgotNotif() {
+  const notif = document.getElementById('forgot-inline-notif');
+  if (notif) notif.classList.add('hidden');
 }
 
 function closeForgotModal(event) {

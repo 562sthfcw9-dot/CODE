@@ -219,6 +219,82 @@
   margin-bottom: 24px;
 }
 
+/* ── CASE TIMELINE MODAL (Dispatch) ───────────────────────── */
+.dispatch-timeline-wrap {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.dispatch-timeline-heading {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--mist);
+  margin-bottom: 8px;
+}
+
+.dispatch-timeline-item {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+
+.dispatch-timeline-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 12px;
+  bottom: 0;
+  width: 1px;
+  background: #d8d8d8;
+}
+
+.dispatch-timeline-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  border: 1px solid #d6d6d6;
+  background: #efefef;
+  flex-shrink: 0;
+}
+
+.dispatch-timeline-item.done .dispatch-timeline-dot {
+  border-color: #2a9d5c;
+  background: #2a9d5c;
+}
+
+.dispatch-timeline-content {
+  min-width: 0;
+}
+
+.dispatch-timeline-title {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.dispatch-timeline-time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #8d939a;
+  margin-top: 2px;
+}
+
+.dispatch-timeline-note {
+  font-size: 13px;
+  line-height: 1.6;
+  margin-top: 3px;
+}
+
+.dispatch-timeline-item.pending .dispatch-timeline-title,
+.dispatch-timeline-item.pending .dispatch-timeline-time,
+.dispatch-timeline-item.pending .dispatch-timeline-note {
+  color: #a7adb3;
+}
+
 /* ── REJECT REASON FIELD ───────────────────────────────────── */
 .reject-section {
   margin-top: 16px;

@@ -16,6 +16,10 @@ let dispatchActiveQueueTab = 'submitted';
 let activeChat = null;
 let chatInterval = null;
 let chatLastId = 0;
+let officerChatAlertInterval = null;
+let officerChatAlertMap = {};
+let officerLastIncomingMap = {};
+let officerUnreadCountMap = {};
 
 /* ── Live Officer Map state ── */
 let _dashMap = null;
@@ -52,6 +56,33 @@ function _badgeClassByStatus(status) {
 
 function _officerRoleLabel(officer) {
   return officer.officer_role === 'dispatch_officer' ? 'Dispatch' : 'Field';
+}
+
+function _chatReceiverRole(officer) {
+    return officer?.officer_role === 'dispatch_officer' ? 'dispatch' : 'field';
+}
+
+function _chatPartnerKey(receiverRole, receiverId) {
+    return `${String(receiverRole)}:${String(receiverId)}`;
+}
+
+function getOfficerUnreadTotal() {
+  return Object.values(officerUnreadCountMap).reduce((sum, n) => sum + Number(n || 0), 0);
+}
+
+function updateOfficerNavBadge() {
+  const badge = document.getElementById('badge-officers-msg');
+  if (!badge) return;
+  const total = getOfficerUnreadTotal();
+  badge.textContent = String(total);
+  badge.classList.toggle('hidden', total <= 0);
+}
+
+function clearOfficerMessageAlerts() {
+  Object.keys(officerChatAlertMap).forEach(key => { officerChatAlertMap[key] = false; });
+  Object.keys(officerUnreadCountMap).forEach(key => { officerUnreadCountMap[key] = 0; });
+  refreshOfficerContactButtonStyles();
+  updateOfficerNavBadge();
 }
 
 function _officerIcon(status) {
@@ -163,6 +194,7 @@ async function initDispatch() {
     renderQueueTable();
     renderActiveCases();
     renderOfficers();
+    startOfficerChatAlertPolling();
     /* Init maps after first data load */
     initDashMap();
     startMapPolling();
@@ -338,7 +370,7 @@ function renderActiveCases() {
             <div class="active-case-meta">${safeText(c.cat)} · Brgy. ${safeText(c.brgy)} · ${formatDateTime(c.date)}</div>
           </div>
           <div style="display:flex;gap:8px">
-            <button class="btn-secondary btn-sm" onclick="openReviewModal('${safeText(c.id)}')">Details</button>
+            <button class="btn-secondary btn-sm" onclick="openCaseTimelineModal('${safeText(c.id)}')">CASE TIMELINE</button>
             ${c.status === 'assigned' ? `<button class="btn-danger btn-sm" onclick="openReviewModal('${safeText(c.id)}')">Reassign</button>` : ''}
           </div>
         </div>
@@ -359,6 +391,103 @@ function renderActiveCases() {
         </div>
       </div>`;
     }).join('');
+}
+
+function buildCaseTimelineItems(currentStatus, timelineMap) {
+    const statusOrder = ['submitted', 'verified', 'assigned', 'en_route', 'in_progress', 'resolved', 'validated', 'closed'];
+    const titleMap = {
+        submitted: 'Submitted',
+        verified: 'Verified',
+        assigned: 'Assigned',
+        en_route: 'En Route',
+        in_progress: 'In Progress',
+        resolved: 'Resolved',
+        validated: 'Validated',
+        closed: 'Closed',
+    };
+    const fallbackNotes = {
+        submitted: 'Complaint received. Tracking ID generated.',
+        verified: 'Dispatch Officer validated complaint details.',
+        assigned: 'Assigned to a Field Officer.',
+        en_route: 'Officer departed to incident site.',
+        in_progress: 'Officer checked in at incident site (GPS confirmed).',
+        resolved: 'Resolution report submitted by officer.',
+        validated: 'Dispatch Officer confirmed resolution.',
+        closed: 'Case officially closed.',
+    };
+
+    const currentIdx = statusOrder.indexOf(String(currentStatus || '').toLowerCase());
+
+    return statusOrder.map((status, idx) => {
+        const reached = currentIdx >= 0 && idx <= currentIdx;
+        const item = timelineMap[status] || null;
+        const title = titleMap[status] || status;
+        const timeText = item?.changed_at ? formatDateTime(item.changed_at) : '--';
+        const noteText = item?.notes ? safeText(item.notes) : fallbackNotes[status];
+
+        return `
+          <div class="dispatch-timeline-item ${reached ? 'done' : 'pending'}">
+            <div class="dispatch-timeline-dot"></div>
+            <div class="dispatch-timeline-content">
+              <div class="dispatch-timeline-title">${safeText(title)}</div>
+              <div class="dispatch-timeline-time">${safeText(timeText)}</div>
+              <div class="dispatch-timeline-note">${safeText(noteText)}</div>
+            </div>
+          </div>`;
+    }).join('');
+}
+
+async function toggleCaseTimeline(id) {
+    const c = ACTIVE_CASES.find(x => x.id === id) || QUEUE_DATA.find(x => x.id === id);
+    if (!c) return;
+
+    let timelineEntries = [];
+    try {
+        const resp = await apiFetch('dispatch.php', {action: 'caseTimeline', id});
+        timelineEntries = Array.isArray(resp.timeline) ? resp.timeline : [];
+    } catch (_) {
+        timelineEntries = [];
+    }
+
+    const timelineMap = {};
+    timelineEntries.forEach(entry => {
+        const key = String(entry.status || '').toLowerCase();
+        timelineMap[key] = entry;
+    });
+
+    if (!timelineMap.submitted && c?.date) {
+        timelineMap.submitted = {
+            status: 'submitted',
+            changed_at: c.date,
+            notes: 'Complaint received. Tracking ID generated.',
+        };
+    }
+
+    openModal(`
+      <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal modal-lg">
+          <div class="modal-head">
+            <div>
+              <div class="modal-title">Case Timeline</div>
+              <div class="modal-subtitle">${safeText(c.id)}</div>
+            </div>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="dispatch-timeline-wrap">
+              <div class="dispatch-timeline-heading">CASE TIMELINE</div>
+              ${buildCaseTimelineItems(c.status, timelineMap)}
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal()">Close</button>
+          </div>
+        </div>
+      </div>`);
+}
+
+async function openCaseTimelineModal(id) {
+    await toggleCaseTimeline(id);
 }
 
 function openReviewModal(id) {
@@ -694,10 +823,66 @@ function renderOfficers() {
         ${perfBar('Workload', Math.min(100, (o.cases_closed ?? 0) * 12))}
         <div style="display:flex;gap:8px;margin-top:12px">
           <button class="btn-secondary btn-sm" style="flex:1" onclick="showToast('Viewing cases for ${safeText(o.name)}')">View Cases</button>
-          <button class="btn-secondary btn-sm" style="flex:1" onclick="openChatModal('${safeText(o.id)}','${safeText(o.name)}','${o.officer_role === 'dispatch_officer' ? 'dispatch' : 'field'}')">Contact</button>
+          <button id="contact-btn-${safeText(_chatPartnerKey(_chatReceiverRole(o), o.id))}" class="${officerChatAlertMap[_chatPartnerKey(_chatReceiverRole(o), o.id)] ? 'btn-danger' : 'btn-secondary'} btn-sm" style="flex:1" onclick="openChatModal('${safeText(o.id)}','${safeText(o.name)}','${_chatReceiverRole(o)}')">Contact</button>
         </div>
       </div>`).join('');
 }
+
+    function refreshOfficerContactButtonStyles() {
+      OFFICERS_DATA.forEach(o => {
+        const key = _chatPartnerKey(_chatReceiverRole(o), o.id);
+        const btn = document.getElementById(`contact-btn-${key}`);
+        if (!btn) return;
+        btn.classList.remove('btn-secondary', 'btn-danger');
+        btn.classList.add(officerChatAlertMap[key] ? 'btn-danger' : 'btn-secondary');
+      });
+      updateOfficerNavBadge();
+    }
+
+    async function refreshOfficerChatAlerts({baselineOnly = false} = {}) {
+      if (!OFFICERS_DATA.length) return;
+
+      const checks = OFFICERS_DATA.map(async o => {
+        const receiverRole = _chatReceiverRole(o);
+        const receiverId = String(o.id ?? '');
+        if (!receiverId) return;
+
+        const chatKey = _chatPartnerKey(receiverRole, receiverId);
+        try {
+          const resp = await apiFetch('messages.php', {action: 'thread', receiver_role: receiverRole, receiver_id: receiverId});
+          const messages = Array.isArray(resp.messages) ? resp.messages : [];
+          const incoming = messages.filter(m => String(m.senderRole || '') !== 'dispatch');
+          const lastIncomingId = incoming.length ? Number(incoming[incoming.length - 1].id || 0) : 0;
+          const prevIncomingId = Number(officerLastIncomingMap[chatKey] || 0);
+
+          if (!Object.prototype.hasOwnProperty.call(officerLastIncomingMap, chatKey) || baselineOnly) {
+            officerLastIncomingMap[chatKey] = lastIncomingId;
+            officerUnreadCountMap[chatKey] = 0;
+            return;
+          }
+
+          const newIncomingCount = incoming.filter(m => Number(m.id || 0) > prevIncomingId).length;
+          if (newIncomingCount > 0) {
+            officerUnreadCountMap[chatKey] = Number(officerUnreadCountMap[chatKey] || 0) + newIncomingCount;
+            officerChatAlertMap[chatKey] = true;
+          }
+          officerLastIncomingMap[chatKey] = Math.max(prevIncomingId, lastIncomingId);
+        } catch (error) {
+          console.warn('Unable to refresh officer chat alerts:', error.message);
+        }
+      });
+
+      await Promise.all(checks);
+      refreshOfficerContactButtonStyles();
+    }
+
+    function startOfficerChatAlertPolling() {
+      if (officerChatAlertInterval) clearInterval(officerChatAlertInterval);
+      refreshOfficerChatAlerts({baselineOnly: true});
+      officerChatAlertInterval = setInterval(() => {
+        refreshOfficerChatAlerts();
+      }, 5000);
+    }
 
 function renderAnalytics() {
     const catData = [
@@ -891,6 +1076,10 @@ function openChatModal(officerId, officerName, receiverRole = 'field') {
         showToast('Officer ID is required for chat.');
         return;
     }
+  const chatKey = _chatPartnerKey(receiverRole, officerId);
+  officerChatAlertMap[chatKey] = false;
+  officerUnreadCountMap[chatKey] = 0;
+  refreshOfficerContactButtonStyles();
     activeChat = {receiverRole, receiverId: officerId, name: officerName};
     chatLastId = 0;
     loadChatThread();
@@ -922,6 +1111,13 @@ async function loadChatThread() {
     try {
         const resp = await apiFetch('messages.php', {action: 'thread', receiver_role: activeChat.receiverRole, receiver_id: activeChat.receiverId});
         const messages = resp.messages || [];
+    const chatKey = _chatPartnerKey(activeChat.receiverRole, activeChat.receiverId);
+    const incoming = messages.filter(m => String(m.senderRole || '') !== 'dispatch');
+    const lastIncomingId = incoming.length ? Number(incoming[incoming.length - 1].id || 0) : 0;
+    officerLastIncomingMap[chatKey] = Math.max(Number(officerLastIncomingMap[chatKey] || 0), lastIncomingId);
+    officerChatAlertMap[chatKey] = false;
+    officerUnreadCountMap[chatKey] = 0;
+    refreshOfficerContactButtonStyles();
         chatLastId = messages.length ? messages[messages.length - 1].id : 0;
         renderChatMessages(messages);
     } catch (error) {
@@ -1003,6 +1199,7 @@ function stopChatPolling() {
     window.setActivePage = function setActivePage(pageId) {
         if (_prev) _prev(pageId);
         if (pageId === 'officers') {
+          clearOfficerMessageAlerts();
             if (!_officersMap) {
                 setTimeout(initOfficersPageMap, 50);
             } else {

@@ -247,6 +247,35 @@ if ($action === 'activeCases') {
     successResponse(['activeCases' => $stmt->fetchAll()]);
 }
 
+if ($action === 'caseTimeline') {
+    $trackingId = trim((string)($data['id'] ?? ''));
+    if ($trackingId === '') {
+        errorResponse('Complaint ID is required.');
+    }
+
+    $cStmt = $db->prepare('SELECT complaint_id, submitted_at, status FROM Complaints WHERE tracking_id = :id');
+    $cStmt->execute([':id' => $trackingId]);
+    $complaint = $cStmt->fetch();
+    if (!$complaint) {
+        errorResponse('Complaint not found.');
+    }
+
+    $hStmt = $db->prepare(
+        'SELECT status, notes, changed_at
+         FROM Status_history
+         WHERE complaint_id = :cid
+         ORDER BY changed_at ASC, status_history_id ASC'
+    );
+    $hStmt->execute([':cid' => (int)$complaint['complaint_id']]);
+    $timeline = $hStmt->fetchAll();
+
+    successResponse([
+        'timeline' => $timeline,
+        'current_status' => $complaint['status'],
+        'submitted_at' => $complaint['submitted_at'],
+    ]);
+}
+
 if ($action === 'closeCase') {
     $trackingId = trim((string)($data['id'] ?? ''));
     $feedback   = trim((string)($data['feedback'] ?? ''));
