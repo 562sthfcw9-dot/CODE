@@ -232,6 +232,33 @@ function toggleNotif() {
     document.getElementById('notif-panel').classList.toggle('hidden', !dispatchNotifOpen);
 }
 
+function showNotification(title, message) {
+  const container = document.getElementById('notif-panel') || document.querySelector('.notif-panel');
+  if (!container) return;
+
+  const item = document.createElement('div');
+  item.className = 'notif-item';
+  item.innerHTML = `<div class="notif-dot-inline"></div><div><div class="notif-msg">${safeText(title)}</div><div class="notif-time">${safeText(message)}</div></div>`;
+
+  const head = container.querySelector('.notif-head');
+  if (head) {
+    container.insertBefore(item, head.nextSibling);
+  } else {
+    container.insertBefore(item, container.firstChild);
+  }
+
+  const items = container.querySelectorAll('.notif-item');
+  const maxItems = 20;
+  if (items.length > maxItems) {
+    for (let i = maxItems; i < items.length; i++) {
+      items[i].remove();
+    }
+  }
+
+  const notifDot = document.querySelector('#notif-btn .notif-dot');
+  if (notifDot) notifDot.classList.remove('hidden');
+}
+
 document.addEventListener('click', e => {
     if (!e.target.closest('#notif-btn') && dispatchNotifOpen) {
         document.getElementById('notif-panel').classList.add('hidden');
@@ -490,6 +517,64 @@ async function openCaseTimelineModal(id) {
     await toggleCaseTimeline(id);
 }
 
+function normalizePriorityValue(priority) {
+  return String(priority || '').trim().toLowerCase();
+}
+
+function getPriorityLabel(priority) {
+  const value = normalizePriorityValue(priority);
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : 'Medium';
+}
+
+function priorityOptionsMarkup(selectedPriority) {
+  const selected = normalizePriorityValue(selectedPriority) || 'medium';
+  const levels = ['low', 'medium', 'high', 'urgent'];
+  return levels.map(level => `<option value="${level}" ${selected === level ? 'selected' : ''}>${getPriorityLabel(level)}</option>`).join('');
+}
+
+function setComplaintPriorityLocally(id, priority) {
+  const next = normalizePriorityValue(priority);
+  QUEUE_DATA.forEach(c => {
+    if (String(c.id) === String(id)) c.priority = next;
+  });
+  ACTIVE_CASES.forEach(c => {
+    if (String(c.id) === String(id)) c.priority = next;
+  });
+}
+
+async function updateComplaintPriority(id, priority) {
+  const next = normalizePriorityValue(priority);
+  if (!['low', 'medium', 'high', 'urgent'].includes(next)) {
+    showToast('Invalid priority level selected.');
+    return;
+  }
+
+  try {
+    await apiFetch('dispatch.php', {action: 'updatePriority', id, priority: next}, 'POST');
+    setComplaintPriorityLocally(id, next);
+
+    const reviewBadgeWrap = document.getElementById(`review-priority-badge-${id}`);
+    if (reviewBadgeWrap) reviewBadgeWrap.innerHTML = priorityBadge(next);
+
+    const verifyBadgeWrap = document.getElementById(`verify-priority-badge-${id}`);
+    if (verifyBadgeWrap) verifyBadgeWrap.innerHTML = priorityBadge(next);
+
+    const reviewSelect = document.getElementById(`review-priority-select-${id}`);
+    if (reviewSelect) reviewSelect.value = next;
+
+    const verifySelect = document.getElementById(`verify-priority-select-${id}`);
+    if (verifySelect) verifySelect.value = next;
+
+    renderQueueTable();
+    renderActiveCases();
+
+    showNotification(`Priority updated: ${id}`, `Set to ${getPriorityLabel(next)}`);
+    showToast(`Priority updated to ${getPriorityLabel(next)}.`);
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
 function openReviewModal(id) {
     const c = QUEUE_DATA.find(x => x.id === id);
     if (!c) return;
@@ -519,7 +604,7 @@ function openReviewModal(id) {
           </div>
           <div class="modal-body">
             <div class="badge-row">
-              ${statusBadge(c.status)} ${priorityBadge(c.priority)}
+              ${statusBadge(c.status)} <span id="review-priority-badge-${safeText(c.id)}">${priorityBadge(c.priority)}</span>
               ${c.duplicate ? '<span class="dup-flag">⚠ Potential Duplicate within 100m / 24hr window</span>' : ''}
             </div>
             <div class="detail-grid">
@@ -527,6 +612,7 @@ function openReviewModal(id) {
               <div class="detail-item"><label>Barangay</label><span>${safeText(c.brgy)}</span></div>
               <div class="detail-item"><label>Reporter</label><span>${c.anon ? 'Anonymous' : safeText(c.user || 'Citizen')}</span></div>
               <div class="detail-item"><label>Date / Time</label><span>${formatDateTime(c.date)}</span></div>
+              <div class="detail-item"><label>Priority Level</label><span><select class="form-select" id="review-priority-select-${safeText(c.id)}" onchange="updateComplaintPriority('${safeText(c.id)}', this.value)">${priorityOptionsMarkup(c.priority)}</select></span></div>
             </div>
             <div class="complaint-desc">${safeText(c.desc)}</div>
             ${mapPlaceholder(160, '', c.lat, c.lng)}
@@ -570,6 +656,7 @@ async function confirmVerifyAssign(id) {
     try {
         await apiFetch('dispatch.php', {action: 'verifyAssign', id, officer_id: dispatchSelectedOfficerId}, 'POST');
         showToast(`✓ Complaint verified and assigned to ${safeText(officer?.name || 'officer')}.`);
+      showNotification(`Complaint ${id} assigned`, `Assigned to ${officer?.name || 'officer'}`);
         await loadDispatchData();
         renderDashboard();
         renderQueueTable();
@@ -606,7 +693,13 @@ function openVerifyModal(id) {
             <button class="modal-close" onclick="closeModal()">✕</button>
           </div>
           <div class="modal-body">
-            <div class="badge-row">${statusBadge(c.status)} ${priorityBadge(c.priority)}</div>
+            <div class="badge-row">${statusBadge(c.status)} <span id="verify-priority-badge-${safeText(c.id)}">${priorityBadge(c.priority)}</span></div>
+            <div class="form-group" style="margin-top:10px">
+              <label>Priority Level</label>
+              <select class="form-select" id="verify-priority-select-${safeText(c.id)}" onchange="updateComplaintPriority('${safeText(c.id)}', this.value)">
+                ${priorityOptionsMarkup(c.priority)}
+              </select>
+            </div>
             <div class="complaint-desc">${safeText(c.desc)}</div>
             <div class="section-title">Select Field Officer</div>
             <div class="officer-grid">${officerCards}</div>
@@ -636,6 +729,7 @@ async function confirmVerifyModal(id) {
     try {
         await apiFetch('dispatch.php', {action: 'verifyAssign', id, officer_id: dispatchSelectedOfficerId}, 'POST');
         showToast(`✓ Complaint verified and assigned to ${safeText(officer?.name || 'officer')}.`);
+      showNotification(`Complaint ${id} assigned`, `Assigned to ${officer?.name || 'officer'}`);
         await loadDispatchData();
         renderDashboard();
         renderQueueTable();
@@ -678,6 +772,7 @@ async function submitReject(id) {
     try {
         await apiFetch('dispatch.php', {action: 'reject', id, reason}, 'POST');
         showToast('Complaint rejected. Reason sent to user.');
+      showNotification(`Complaint ${id} rejected`, 'Reason sent to reporting user');
         await loadDispatchData();
         renderDashboard();
         renderQueueTable();
@@ -727,6 +822,7 @@ async function submitReassign(id) {
     try {
         await apiFetch('dispatch.php', {action: 'reassign', id, officer_id: officerId}, 'POST');
         showToast('Case reassigned successfully.');
+      showNotification(`Complaint ${id} reassigned`, 'Case reassigned to another officer');
         await loadDispatchData();
         renderDashboard();
         renderQueueTable();
@@ -1176,20 +1272,6 @@ function stopChatPolling() {
     if (chatInterval) {
         clearInterval(chatInterval);
         chatInterval = null;
-
-    function showNotification(title, message) {
-      const container = document.getElementById('notif-panel') || document.querySelector('.notif-panel');
-      if (!container) return;
-    
-      const item = document.createElement('div');
-      item.className = 'notif-item';
-      item.innerHTML = `<div class="notif-dot-inline"></div><div><div class="notif-msg">${safeText(title)}</div><div class="notif-time">${safeText(message)}</div></div>`;
-      container.insertBefore(item, container.querySelector('.notif-item') || container.firstChild);
-    
-      while (container.querySelectorAll('.notif-item').length > 5) {
-        container.lastChild?.remove();
-      }
-    }
     }
 }
 

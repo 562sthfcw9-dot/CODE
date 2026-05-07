@@ -51,6 +51,48 @@ if ($action === 'queue') {
     successResponse(['complaints' => $stmt->fetchAll()]);
 }
 
+if ($action === 'updatePriority') {
+    $trackingId = trim((string)($data['id'] ?? ''));
+    $priority   = strtolower(trim((string)($data['priority'] ?? '')));
+    $allowed    = ['low', 'medium', 'high', 'urgent'];
+
+    if ($trackingId === '' || $priority === '') {
+        errorResponse('Complaint ID and priority are required.');
+    }
+    if (!in_array($priority, $allowed, true)) {
+        errorResponse('Invalid priority level. Allowed: low, medium, high, urgent.');
+    }
+
+    $cStmt = $db->prepare('SELECT complaint_id, status FROM Complaints WHERE tracking_id = :id LIMIT 1');
+    $cStmt->execute([':id' => $trackingId]);
+    $complaint = $cStmt->fetch();
+    if (!$complaint) {
+        errorResponse('Complaint not found.');
+    }
+
+    $complaintId = (int)$complaint['complaint_id'];
+    $statusValue = (string)$complaint['status'];
+
+    $db->prepare('UPDATE Complaints SET priority = :priority, dispatch_id = :did WHERE complaint_id = :cid')
+       ->execute([':priority' => $priority, ':did' => $dispatchId, ':cid' => $complaintId]);
+
+    $db->prepare(
+        'INSERT INTO Status_history (complaint_id, changed_by, status, notes)
+         VALUES (:cid, :uid, :status, :notes)'
+    )->execute([
+        ':cid' => $complaintId,
+        ':uid' => $dispatchUid,
+        ':status' => $statusValue,
+        ':notes' => 'Priority level updated to ' . strtoupper($priority) . ' by dispatch.',
+    ]);
+
+    successResponse([
+        'message' => 'Priority updated successfully.',
+        'id' => $trackingId,
+        'priority' => $priority,
+    ]);
+}
+
 if ($action === 'officers') {
     $fieldStmt = $db->query(
         "SELECT f.officer_id AS id, f.badge_number AS code, u.full_name AS name,

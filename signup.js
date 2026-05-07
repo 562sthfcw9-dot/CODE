@@ -10,22 +10,34 @@ const signupRole = document.body?.dataset?.role || 'dispatch';
 const LEGAL_TEXT = {
   terms: {
     head: 'TERMS AND CONDITIONS',
-    body: 'Welcome to TRAPICO. By using this system, you agree to provide accurate traffic reports. Misuse of the platform or filing false reports may lead to account suspension and legal action under Quezon City traffic ordinances.',
+    body: 'By creating an account, you agree to use TRAPICO only for official traffic operations and to provide accurate information. False reports, unauthorized access, or misuse of this system may result in account suspension and legal action.',
   },
   privacy: {
     head: 'PRIVACY POLICY',
-    body: 'We value your privacy. TRAPICO collects officer identification and location data strictly for incident validation. Your personal information is encrypted and will not be shared with third parties without your explicit consent.',
+    body: 'TRAPICO collects your account, contact, and assignment data strictly for dispatch operations. Your information is stored securely and processed only for system functionality and authorized government use.',
   },
 };
+
+function hasEnhancedDispatchFields() {
+  return !!document.getElementById('dis-firstname');
+}
 
 function toggleSuPassword(inputId, toggleId) {
   const input = document.getElementById(inputId);
   const toggle = document.getElementById(toggleId);
+  if (!input || !toggle) return;
+
   const showing = input.type === 'text';
 
   input.type = showing ? 'password' : 'text';
-  toggle.textContent = showing ? '◔' : '◕';
-  toggle.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+  toggle.classList.toggle('is-visible', !showing);
+
+  const isConfirm = inputId === 'dis-confirm';
+  if (showing) {
+    toggle.setAttribute('aria-label', isConfirm ? 'Show confirm password' : 'Show password');
+  } else {
+    toggle.setAttribute('aria-label', isConfirm ? 'Hide confirm password' : 'Hide password');
+  }
 }
 
 function toggleDropdown(id) {
@@ -112,7 +124,21 @@ function getVal(id) {
 }
 
 function isStrongPassword(password) {
-  return password.length >= 8 && /[A-Z]/.test(password);
+  return password.length >= 8 && /[A-Z]/.test(password) && /\d/.test(password);
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function isValidPhone(phone) {
+  return phone.replace(/\D/g, '').length >= 10;
+}
+
+function getBarangayValue() {
+  const nativeSelect = document.getElementById('dis-brgy');
+  if (nativeSelect) return nativeSelect.value.trim();
+  return getVal('dis-brgy-input');
 }
 
 function showError(message) {
@@ -126,15 +152,41 @@ function clearError() {
 }
 
 function isFormReady() {
+  const enhancedDispatch = hasEnhancedDispatchFields();
   const username = getVal('dis-username');
   const phone = getVal('dis-phone');
-  const barangay = getVal('dis-brgy-input');
+  const barangay = getBarangayValue();
   const password = getVal('dis-password');
   const confirm = getVal('dis-confirm');
   const terms = document.getElementById('dis-terms').checked;
   const privacy = document.getElementById('dis-privacy').checked;
 
-  return !!(username && phone && barangay && password && confirm && terms && privacy);
+  if (!enhancedDispatch) {
+    return !!(username && phone && barangay && password && confirm && terms && privacy);
+  }
+
+  const firstName = getVal('dis-firstname');
+  const lastName = getVal('dis-lastname');
+  const employeeId = getVal('dis-employeeid');
+  const badgeId = getVal('dis-badgeid');
+  const department = getVal('dis-department');
+  const email = getVal('dis-email');
+
+  return !!(
+    firstName &&
+    lastName &&
+    employeeId &&
+    badgeId &&
+    department &&
+    username &&
+    barangay &&
+    email &&
+    phone &&
+    password &&
+    confirm &&
+    terms &&
+    privacy
+  );
 }
 
 function updateSubmitState() {
@@ -149,16 +201,35 @@ function updateSubmitState() {
 async function submitDispatchSignup() {
   clearError();
 
+  const enhancedDispatch = hasEnhancedDispatchFields();
+
+  const firstName = getVal('dis-firstname');
+  const lastName = getVal('dis-lastname');
+  const employeeId = getVal('dis-employeeid');
+  const badgeId = getVal('dis-badgeid');
+  const department = getVal('dis-department');
   const username = getVal('dis-username');
+  const email = getVal('dis-email');
   const phone = getVal('dis-phone');
-  const barangay = getVal('dis-brgy-input');
+  const barangay = getBarangayValue();
   const password = getVal('dis-password');
   const confirm = getVal('dis-confirm');
 
+  if (enhancedDispatch) {
+    if (!firstName) return showError('Please enter your first name.');
+    if (!lastName) return showError('Please enter your last name.');
+    if (!employeeId) return showError('Please enter your employee ID.');
+    if (!badgeId) return showError('Please enter your badge ID.');
+    if (!department) return showError('Please enter your department.');
+    if (!email) return showError('Please enter your email address.');
+    if (!isValidEmail(email)) return showError('Please enter a valid email address.');
+  }
+
   if (!username) return showError('Please enter your username.');
   if (!phone) return showError('Please enter your phone number.');
+  if (!isValidPhone(phone)) return showError('Please enter a valid phone number.');
   if (!barangay) return showError('Please select your barangay.');
-  if (!isStrongPassword(password)) return showError('Password must be at least 8 characters and include one uppercase letter.');
+  if (!isStrongPassword(password)) return showError('Password must be at least 8 characters and include 1 uppercase and 1 number.');
   if (password !== confirm) return showError('Password and confirm password do not match.');
   if (!document.getElementById('dis-terms').checked || !document.getElementById('dis-privacy').checked) {
     return showError('Please accept the Terms and Privacy policy.');
@@ -171,7 +242,13 @@ async function submitDispatchSignup() {
   try {
     await apiFetch('register.php', {
       role: signupRole,
+      first_name: firstName,
+      last_name: lastName,
+      employee_id: employeeId,
+      badge_id: badgeId,
+      department,
       username,
+      email,
       phone_number: phone,
       home_barangay: barangay,
       password,

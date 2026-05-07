@@ -82,5 +82,35 @@
 <script src="data.js?v=20260507n"></script>
 <script src="api.js?v=20260507n"></script>
 <script src="login.js?v=20260507n"></script>
+<script>
+  (function removeDispatchHealthCheck() {
+    function cleanup() {
+      var wrap = document.getElementById('api-health-check-wrap');
+      if (wrap) wrap.remove();
+
+      var buttons = document.querySelectorAll('button');
+      buttons.forEach(function (btn) {
+        if ((btn.textContent || '').trim() === 'API HEALTH CHECK') {
+          var parent = btn.parentElement;
+          if (parent && (parent.style.position === 'fixed' || parent.style.zIndex === '9999')) {
+            parent.remove();
+          } else {
+            btn.remove();
+          }
+        }
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', cleanup);
+    } else {
+      cleanup();
+    }
+
+    setTimeout(cleanup, 50);
+    setTimeout(cleanup, 250);
+    setTimeout(cleanup, 800);
+  })();
+</script>
 </body>
 </html>

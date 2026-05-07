@@ -153,6 +153,33 @@ function isAuthPage() {
         || /(?:^|\/)signup\.html$/i.test(window.location.pathname);
 }
 
+function isDispatchAuthPage() {
+    const path = window.location.pathname || '';
+    const bodyRole = (document.body?.dataset?.role || '').toLowerCase();
+    const looksLikeDispatchAuthPath = /dispatch-(?:login|signup)\.html/i.test(path)
+        || /dispatch-(?:login|signup)/i.test(path);
+    return looksLikeDispatchAuthPath || (bodyRole === 'dispatch' && isAuthPage());
+}
+
+function removeExistingApiHealthCheckUI() {
+    const knownWrap = document.getElementById('api-health-check-wrap');
+    if (knownWrap) knownWrap.remove();
+
+    const candidates = Array.from(document.querySelectorAll('button')).filter(btn => {
+        return btn.textContent && btn.textContent.trim() === 'API HEALTH CHECK';
+    });
+
+    candidates.forEach(btn => {
+        const parent = btn.parentElement;
+        if (!parent) return;
+        if (parent.style?.position === 'fixed' || parent.style?.zIndex === '9999') {
+            parent.remove();
+        } else {
+            btn.remove();
+        }
+    });
+}
+
 function showHealthMessage(el, message, isError) {
     el.textContent = message;
     el.style.display = 'block';
@@ -163,8 +190,13 @@ function showHealthMessage(el, message, isError) {
 
 function addApiHealthCheckUI() {
     if (!isAuthPage()) return;
+    if (isDispatchAuthPage()) {
+        removeExistingApiHealthCheckUI();
+        return;
+    }
 
     const wrap = document.createElement('div');
+    wrap.id = 'api-health-check-wrap';
     wrap.style.position = 'fixed';
     wrap.style.right = '16px';
     wrap.style.bottom = '16px';
@@ -249,5 +281,9 @@ function addApiHealthCheckUI() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    if (isDispatchAuthPage()) {
+        removeExistingApiHealthCheckUI();
+        return;
+    }
     addApiHealthCheckUI();
 });
