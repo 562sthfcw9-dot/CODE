@@ -267,6 +267,13 @@
   box-shadow: 0 16px 26px rgba(0, 0, 0, 0.16);
 }
 
+.auth-switch-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 .login-footer-copy {
   margin-top: 6px;
   text-align: center;

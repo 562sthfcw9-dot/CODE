@@ -1,26 +1,44 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/helpers.php';
 
-$data = getJsonPayload();
-$action = trim((string)($_REQUEST['action'] ?? $data['action'] ?? 'assigned'));
-$user = requireRole('field');
-$db = getDb();
+$data       = getJsonPayload();
+$action     = trim((string)($_REQUEST['action'] ?? $data['action'] ?? 'assigned'));
+$user       = requireRole('field');
+$db         = getDb();
+$officerId  = (int)($user['id'] ?? 0);
+$officerUid = (int)($user['user_id'] ?? $officerId);
 
 if ($action === 'assigned') {
-    $stmt = $db->prepare('SELECT a.assignment_id, a.tracking_number AS id, a.response_deadline_timestamp AS deadline, a.has_officer_checked_in AS checked_in, a.assignment_status AS assignment_status, t.incident_category AS cat, t.incident_barangay AS brgy, t.urgency_priority AS priority, t.current_progress_status AS status, t.submission_timestamp AS date, t.incident_description AS desc, t.map_latitude AS lat, t.map_longitude AS lng, t.is_reported_anonymously AS anon FROM officer_job_assignments a JOIN traffic_complaints_master t ON t.tracking_number = a.tracking_number WHERE a.assigned_officer_id = :officer_id AND a.assignment_status IN ("pending","in_progress") ORDER BY a.assignment_start_time DESC');
-    $stmt->execute([':officer_id' => $user['id']]);
+    $stmt = $db->prepare(
+        'SELECT a.assignment_id, c.tracking_id AS id, a.response_deadline AS deadline,
+                a.has_checked_in AS checked_in, a.assignment_status,
+                c.category AS cat, c.asset_town AS brgy, c.priority, c.status,
+                c.submitted_at AS date, c.description AS `desc`,
+                c.latitude AS lat, c.longitude AS lng, c.is_anonymous AS anon
+         FROM Assignments a
+         JOIN Complaints c ON c.complaint_id = a.complaint_id
+         WHERE a.field_officer_id = :oid AND a.assignment_status IN ("pending","in_progress")
+         ORDER BY a.assigned_at DESC'
+    );
+    $stmt->execute([':oid' => $officerId]);
     successResponse(['assignments' => $stmt->fetchAll()]);
 }
 
 if ($action === 'checkin') {
     $assignmentId = intval($data['assignment_id'] ?? 0);
-    $simulate = isset($data['simulate']) && boolval($data['simulate']);
+    $simulate     = isset($data['simulate']) && boolval($data['simulate']);
     if ($assignmentId <= 0) {
         errorResponse('Assignment ID is required.');
     }
 
-    $stmt = $db->prepare('SELECT a.tracking_number, t.map_latitude AS lat, t.map_longitude AS lng FROM officer_job_assignments a JOIN traffic_complaints_master t ON t.tracking_number = a.tracking_number WHERE a.assignment_id = :assignment_id AND a.assigned_officer_id = :officer_id');
-    $stmt->execute([':assignment_id' => $assignmentId, ':officer_id' => $user['id']]);
+    $stmt = $db->prepare(
+        'SELECT a.complaint_id, c.tracking_id AS tracking_number,
+                c.latitude AS lat, c.longitude AS lng
+         FROM Assignments a
+         JOIN Complaints c ON c.complaint_id = a.complaint_id
+         WHERE a.assignment_id = :aid AND a.field_officer_id = :oid'
+    );
+    $stmt->execute([':aid' => $assignmentId, ':oid' => $officerId]);
     $row = $stmt->fetch();
     if (!$row) {
         errorResponse('Assignment not found.');
@@ -36,60 +54,84 @@ if ($action === 'checkin') {
         }
     }
 
-    $officerLat = $simulate ? null : floatval($data['lat']);
-    $officerLng = $simulate ? null : floatval($data['lng']);
+    $chkLat = $simulate ? null : floatval($data['lat']);
+    $chkLng = $simulate ? null : floatval($data['lng']);
 
-    $db->prepare('UPDATE officer_job_assignments SET has_officer_checked_in = 1, actual_arrival_time = NOW(), assignment_status = :status, officer_geofence_latitude = :lat, officer_geofence_longitude = :lng WHERE assignment_id = :assignment_id')->execute([':status' => 'in_progress', ':lat' => $officerLat, ':lng' => $officerLng, ':assignment_id' => $assignmentId]);
-    if (!$simulate && $officerLat !== null) {
-        $db->prepare('UPDATE field_officer_accounts SET gps_latitude = :lat, gps_longitude = :lng, gps_last_updated = NOW(), current_duty_status = :status WHERE officer_id = :id')->execute([':lat' => $officerLat, ':lng' => $officerLng, ':status' => 'busy', ':id' => $user['id']]);
+    $db->prepare(
+        'UPDATE Assignments SET has_checked_in = 1, arrived_at = NOW(), assignment_status = :status,
+         checkin_latitude = :lat, checkin_longitude = :lng WHERE assignment_id = :aid'
+    )->execute([':status' => 'in_progress', ':lat' => $chkLat, ':lng' => $chkLng, ':aid' => $assignmentId]);
+
+    if (!$simulate && $chkLat !== null) {
+        $db->prepare(
+            "UPDATE Field_officers SET current_latitude = :lat, current_longitude = :lng,
+             gps_last_updated = NOW(), is_available = 'busy' WHERE officer_id = :oid"
+        )->execute([':lat' => $chkLat, ':lng' => $chkLng, ':oid' => $officerId]);
     }
-    $db->prepare('UPDATE traffic_complaints_master SET current_progress_status = :status WHERE tracking_number = :tracking')->execute([':status' => 'in_progress', ':tracking' => $row['tracking_number']]);
-    $db->prepare('INSERT INTO complaint_lifecycle_timeline (tracking_number, status_reached, status_remarks) VALUES (:tracking, :status, :remarks)')->execute([':tracking' => $row['tracking_number'], ':status' => 'in_progress', ':remarks' => 'Field officer checked in within the geofence.']);
+
+    $db->prepare("UPDATE Complaints SET status = 'in_progress' WHERE complaint_id = :cid")
+       ->execute([':cid' => $row['complaint_id']]);
+
+    $db->prepare('INSERT INTO Status_history (complaint_id, changed_by, status, notes) VALUES (:cid, :uid, :status, :notes)')
+       ->execute([':cid' => $row['complaint_id'], ':uid' => $officerUid, ':status' => 'in_progress', ':notes' => 'Field officer checked in within the geofence.']);
 
     successResponse(['message' => 'Check-in confirmed. Status updated to In Progress.']);
 }
 
 if ($action === 'submitResolution') {
     $assignmentId = intval($data['assignment_id'] ?? 0);
-    $method = trim((string)($data['method'] ?? ''));
-    $desc = trim((string)($data['description'] ?? ''));
-    $equipment = trim((string)($data['equipment'] ?? ''));
-    $followup = trim((string)($data['followup'] ?? ''));
+    $method       = trim((string)($data['method'] ?? ''));
+    $desc         = trim((string)($data['description'] ?? ''));
 
     if ($assignmentId <= 0 || $method === '' || $desc === '') {
         errorResponse('Assignment ID, resolution method, and description are required.');
     }
 
-    $stmt = $db->prepare('SELECT tracking_number FROM officer_job_assignments WHERE assignment_id = :assignment_id AND assigned_officer_id = :officer_id');
-    $stmt->execute([':assignment_id' => $assignmentId, ':officer_id' => $user['id']]);
-    $tracking = $stmt->fetchColumn();
-    if (!$tracking) {
+    $stmt = $db->prepare(
+        'SELECT a.complaint_id, c.tracking_id AS tracking_number
+         FROM Assignments a
+         JOIN Complaints c ON c.complaint_id = a.complaint_id
+         WHERE a.assignment_id = :aid AND a.field_officer_id = :oid'
+    );
+    $stmt->execute([':aid' => $assignmentId, ':oid' => $officerId]);
+    $row = $stmt->fetch();
+    if (!$row) {
         errorResponse('Active assignment not found.');
     }
+    $complaintId = (int)$row['complaint_id'];
 
-    $insert = $db->prepare('INSERT INTO resolution_reports (tracking_number, assignment_id, officer_id, resolution_description, before_photo_url, after_photo_url, submitted_at, dispatch_approval_status) VALUES (:tracking, :assignment_id, :officer_id, :description, :before_photo, :after_photo, NOW(), :dispatch_status)');
-    $insert->execute([
-        ':tracking' => $tracking,
-        ':assignment_id' => $assignmentId,
-        ':officer_id' => $user['id'],
-        ':description' => $desc,
-        ':before_photo' => '',
-        ':after_photo' => '',
-        ':dispatch_status' => 'pending',
+    $db->prepare(
+        'INSERT INTO resolution_reports (complaint_id, assignment_id, officer_id, resolution_description,
+         before_photo_url, after_photo_url, submitted_at, dispatch_approval_status)
+         VALUES (:cid, :aid, :oid, :desc, :before, :after, NOW(), :status)'
+    )->execute([
+        ':cid'    => $complaintId,
+        ':aid'    => $assignmentId,
+        ':oid'    => $officerId,
+        ':desc'   => $desc,
+        ':before' => '',
+        ':after'  => '',
+        ':status' => 'pending',
     ]);
 
-    $db->prepare('UPDATE traffic_complaints_master SET current_progress_status = :status WHERE tracking_number = :tracking')->execute([':status' => 'resolved', ':tracking' => $tracking]);
-    $db->prepare('UPDATE officer_job_assignments SET assignment_status = :status WHERE assignment_id = :assignment_id')->execute([':status' => 'completed', ':assignment_id' => $assignmentId]);
-    /* Mark officer available again once they submit resolution */
-    $db->prepare('UPDATE field_officer_accounts SET current_duty_status = :status WHERE officer_id = :id')->execute([':status' => 'available', ':id' => $user['id']]);
-    $db->prepare('INSERT INTO complaint_lifecycle_timeline (tracking_number, status_reached, status_remarks) VALUES (:tracking, :status, :remarks)')->execute([':tracking' => $tracking, ':status' => 'resolved', ':remarks' => 'Field officer submitted resolution report.']);
+    $db->prepare("UPDATE Complaints SET status = 'resolved' WHERE complaint_id = :cid")
+       ->execute([':cid' => $complaintId]);
+
+    $db->prepare("UPDATE Assignments SET assignment_status = 'completed' WHERE assignment_id = :aid")
+       ->execute([':aid' => $assignmentId]);
+
+    $db->prepare("UPDATE Field_officers SET is_available = 'available' WHERE officer_id = :oid")
+       ->execute([':oid' => $officerId]);
+
+    $db->prepare('INSERT INTO Status_history (complaint_id, changed_by, status, notes) VALUES (:cid, :uid, :status, :notes)')
+       ->execute([':cid' => $complaintId, ':uid' => $officerUid, ':status' => 'resolved', ':notes' => 'Field officer submitted resolution report.']);
 
     successResponse(['message' => 'Resolution submitted successfully.']);
 }
 
 if ($action === 'updateGps') {
-    $lat = isset($data['lat']) ? floatval($data['lat']) : null;
-    $lng = isset($data['lng']) ? floatval($data['lng']) : null;
+    $lat    = isset($data['lat']) ? floatval($data['lat']) : null;
+    $lng    = isset($data['lng']) ? floatval($data['lng']) : null;
     $status = trim((string)($data['status'] ?? ''));
 
     if ($lat === null || $lng === null) {
@@ -97,33 +139,57 @@ if ($action === 'updateGps') {
     }
 
     $validStatuses = ['available', 'busy', 'offline'];
-    $params = [':lat' => $lat, ':lng' => $lng, ':id' => $user['id']];
+    $params = [':lat' => $lat, ':lng' => $lng, ':oid' => $officerId];
+
     if ($status !== '' && in_array($status, $validStatuses, true)) {
-        $db->prepare('UPDATE field_officer_accounts SET gps_latitude = :lat, gps_longitude = :lng, gps_last_updated = NOW(), current_duty_status = :status WHERE officer_id = :id')
-            ->execute(array_merge($params, [':status' => $status]));
+        $db->prepare(
+            'UPDATE Field_officers SET current_latitude = :lat, current_longitude = :lng,
+             gps_last_updated = NOW(), is_available = :status WHERE officer_id = :oid'
+        )->execute(array_merge($params, [':status' => $status]));
     } else {
-        $db->prepare('UPDATE field_officer_accounts SET gps_latitude = :lat, gps_longitude = :lng, gps_last_updated = NOW() WHERE officer_id = :id')
-            ->execute($params);
+        $db->prepare(
+            'UPDATE Field_officers SET current_latitude = :lat, current_longitude = :lng,
+             gps_last_updated = NOW() WHERE officer_id = :oid'
+        )->execute($params);
     }
 
     successResponse(['message' => 'GPS position updated.']);
 }
 
 if ($action === 'history') {
-    $stmt = $db->prepare('SELECT t.tracking_number AS id, t.incident_category AS cat, t.incident_barangay AS brgy, t.urgency_priority AS priority, t.current_progress_status AS status, t.submission_timestamp AS date, t.citizen_feedback_rating AS rating FROM traffic_complaints_master t JOIN officer_job_assignments a ON a.tracking_number = t.tracking_number WHERE a.assigned_officer_id = :officer_id AND t.current_progress_status IN ("resolved","closed","cancelled") ORDER BY t.submission_timestamp DESC');
-    $stmt->execute([':officer_id' => $user['id']]);
+    $stmt = $db->prepare(
+        'SELECT c.tracking_id AS id, c.category AS cat, c.asset_town AS brgy,
+                c.priority, c.status, c.submitted_at AS date,
+                r.score AS rating
+         FROM Complaints c
+         JOIN Assignments a ON a.complaint_id = c.complaint_id
+         LEFT JOIN Ratings r ON r.complaint_id = c.complaint_id AND r.user_id = c.user_id
+         WHERE a.field_officer_id = :oid AND c.status IN ("resolved","closed","cancelled")
+         ORDER BY c.submitted_at DESC'
+    );
+    $stmt->execute([':oid' => $officerId]);
     successResponse(['history' => $stmt->fetchAll()]);
 }
 
 if ($action === 'performance') {
-    $stmt = $db->prepare('SELECT COUNT(*) FROM officer_job_assignments WHERE assigned_officer_id = :officer_id AND assignment_status = "completed"');
-    $stmt->execute([':officer_id' => $user['id']]);
+    $stmt = $db->prepare('SELECT COUNT(*) FROM Assignments WHERE field_officer_id = :oid AND assignment_status = "completed"');
+    $stmt->execute([':oid' => $officerId]);
     $resolved = (int)$stmt->fetchColumn();
-    $stmt = $db->prepare('SELECT COUNT(*) FROM officer_job_assignments WHERE assigned_officer_id = :officer_id AND assignment_status IN ("pending","in_progress")');
-    $stmt->execute([':officer_id' => $user['id']]);
+
+    $stmt = $db->prepare('SELECT COUNT(*) FROM Assignments WHERE field_officer_id = :oid AND assignment_status IN ("pending","in_progress")');
+    $stmt->execute([':oid' => $officerId]);
     $active = (int)$stmt->fetchColumn();
 
-    successResponse(['performance' => ['resolved' => $resolved, 'active' => $active, 'on_time_rate' => 94, 'satisfaction' => 86]]);
+    $stmt = $db->prepare('SELECT avg_response_time, average_user_rating FROM Field_officers WHERE officer_id = :oid');
+    $stmt->execute([':oid' => $officerId]);
+    $metrics = $stmt->fetch();
+
+    successResponse(['performance' => [
+        'resolved'      => $resolved,
+        'active'        => $active,
+        'on_time_rate'  => $metrics['avg_response_time'] ?? 0,
+        'satisfaction'  => $metrics['average_user_rating'] ?? 5,
+    ]]);
 }
 
 errorResponse('Unknown action.');

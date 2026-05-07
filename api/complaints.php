@@ -1,28 +1,35 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/helpers.php';
 
-$data = getJsonPayload();
+$data   = getJsonPayload();
 $action = trim((string)($_REQUEST['action'] ?? $data['action'] ?? 'list'));
-$user = requireLogin();
-$db = getDb();
+$user   = requireLogin();
+$db     = getDb();
 
 function getBarangayCoordinates(string $barangay): array
 {
     $lookup = [
         'Commonwealth' => ['lat' => 14.6760, 'lng' => 121.0437],
         'Batasan Hills' => ['lat' => 14.6915, 'lng' => 121.0507],
-        'Central' => ['lat' => 14.6390, 'lng' => 121.0100],
-        'Sto. Cristo' => ['lat' => 14.6280, 'lng' => 120.9872],
+        'Central'       => ['lat' => 14.6390, 'lng' => 121.0100],
+        'Sto. Cristo'   => ['lat' => 14.6280, 'lng' => 120.9872],
     ];
     return $lookup[$barangay] ?? ['lat' => 14.6760, 'lng' => 121.0437];
 }
 
 if ($action === 'list') {
     if ($user['role'] === 'regular') {
-        $stmt = $db->prepare('SELECT tracking_number AS id, incident_category AS cat, incident_barangay AS brgy, urgency_priority AS priority, current_progress_status AS status, submission_timestamp AS date, is_reported_anonymously AS anon, incident_description AS description, map_latitude AS lat, map_longitude AS lng FROM traffic_complaints_master WHERE citizen_reporter_id = :id ORDER BY submission_timestamp DESC');
-        $stmt->execute([':id' => $user['id']]);
-        $complaints = $stmt->fetchAll();
-        successResponse(['complaints' => $complaints]);
+        $userId = (int)($user['user_id'] ?? $user['id'] ?? 0);
+        $stmt = $db->prepare(
+            'SELECT tracking_id AS id, category AS cat, asset_town AS brgy, priority,
+                    status, submitted_at AS date, is_anonymous AS anon,
+                    description, latitude AS lat, longitude AS lng
+             FROM Complaints
+             WHERE user_id = :uid
+             ORDER BY submitted_at DESC'
+        );
+        $stmt->execute([':uid' => $userId]);
+        successResponse(['complaints' => $stmt->fetchAll()]);
     }
     errorResponse('Only regular users may query their own complaints.', 403);
 }
@@ -32,7 +39,13 @@ if ($action === 'timeline') {
     if ($id === '') {
         errorResponse('Complaint ID is required.');
     }
-    $stmt = $db->prepare('SELECT status_reached AS status, status_remarks AS remarks, event_timestamp AS time FROM complaint_lifecycle_timeline WHERE tracking_number = :id ORDER BY event_timestamp ASC');
+    $stmt = $db->prepare(
+        'SELECT sh.status, sh.notes AS remarks, sh.changed_at AS time
+         FROM Status_history sh
+         JOIN Complaints c ON c.complaint_id = sh.complaint_id
+         WHERE c.tracking_id = :id
+         ORDER BY sh.changed_at ASC'
+    );
     $stmt->execute([':id' => $id]);
     successResponse(['timeline' => $stmt->fetchAll()]);
 }
@@ -42,13 +55,13 @@ if ($action === 'submit') {
         errorResponse('Only regular users can submit complaints.', 403);
     }
 
-    $category = trim((string)($data['category'] ?? ''));
-    $barangay = trim((string)($data['barangay'] ?? ''));
-    $date = trim((string)($data['date'] ?? ''));
-    $time = trim((string)($data['time'] ?? ''));
+    $category    = trim((string)($data['category'] ?? ''));
+    $barangay    = trim((string)($data['barangay'] ?? ''));
+    $date        = trim((string)($data['date'] ?? ''));
+    $time        = trim((string)($data['time'] ?? ''));
     $description = trim((string)($data['description'] ?? ''));
-    $priority = trim((string)($data['priority'] ?? 'medium'));
-    $anonymous = isset($data['anonymous']) ? boolval($data['anonymous']) : false;
+    $priority    = trim((string)($data['priority'] ?? 'medium'));
+    $anonymous   = isset($data['anonymous']) ? boolval($data['anonymous']) : false;
 
     if ($category === '' || $barangay === '' || $date === '' || $time === '' || strlen($description) < 50) {
         errorResponse('All complaint fields are required, and description must be at least 50 characters.');
@@ -56,49 +69,57 @@ if ($action === 'submit') {
 
     $pinnedLat = isset($data['lat']) && is_numeric($data['lat']) ? (float)$data['lat'] : null;
     $pinnedLng = isset($data['lng']) && is_numeric($data['lng']) ? (float)$data['lng'] : null;
-    $fallback = getBarangayCoordinates($barangay);
-    $coords = [
-        'lat' => $pinnedLat ?? $fallback['lat'],
-        'lng' => $pinnedLng ?? $fallback['lng'],
-    ];
-    $trackingNumber = buildTrackingNumber($db);
-    $dateField = date('Y-m-d H:i:s', strtotime($date . ' ' . $time));
+    $fallback  = getBarangayCoordinates($barangay);
+    $coords    = ['lat' => $pinnedLat ?? $fallback['lat'], 'lng' => $pinnedLng ?? $fallback['lng']];
 
-    $stmt = $db->prepare('INSERT INTO traffic_complaints_master (tracking_number, citizen_reporter_id, incident_category, incident_barangay, urgency_priority, current_progress_status, incident_description, is_reported_anonymously, map_latitude, map_longitude, submission_timestamp) VALUES (:tracking, :citizen_id, :category, :barangay, :priority, :status, :description, :anon, :lat, :lng, NOW())');
+    $trackingId = buildTrackingNumber($db);
+    $dateField  = date('Y-m-d H:i:s', strtotime($date . ' ' . $time));
+    $userId     = (int)($user['user_id'] ?? $user['id'] ?? 0);
+
+    $stmt = $db->prepare(
+        'INSERT INTO Complaints (user_id, tracking_id, category, asset_town, priority, status,
+         description, is_anonymous, latitude, longitude, incident_datetime)
+         VALUES (:uid, :tracking, :cat, :brgy, :priority, :status, :desc, :anon, :lat, :lng, :datetime)'
+    );
     $stmt->execute([
-        ':tracking' => $trackingNumber,
-        ':citizen_id' => $user['id'],
-        ':category' => $category,
-        ':barangay' => $barangay,
+        ':uid'      => $userId,
+        ':tracking' => $trackingId,
+        ':cat'      => $category,
+        ':brgy'     => $barangay,
         ':priority' => $priority,
-        ':status' => 'submitted',
-        ':description' => $description,
-        ':anon' => $anonymous ? 1 : 0,
-        ':lat' => $coords['lat'],
-        ':lng' => $coords['lng'],
+        ':status'   => 'submitted',
+        ':desc'     => $description,
+        ':anon'     => $anonymous ? 1 : 0,
+        ':lat'      => $coords['lat'],
+        ':lng'      => $coords['lng'],
+        ':datetime' => $dateField,
     ]);
+    $newComplaintId = (int)$db->lastInsertId();
 
-    $stmt = $db->prepare('INSERT INTO complaint_lifecycle_timeline (tracking_number, status_reached, status_remarks) VALUES (:tracking, :status, :remarks)');
-    $stmt->execute([':tracking' => $trackingNumber, ':status' => 'submitted', ':remarks' => 'Complaint submitted by user.']);
+    $db->prepare('INSERT INTO Status_history (complaint_id, changed_by, status, notes) VALUES (:cid, :uid, :status, :notes)')
+       ->execute([':cid' => $newComplaintId, ':uid' => $userId, ':status' => 'submitted', ':notes' => 'Complaint submitted by user.']);
 
     $duplicates = [];
-    $dupStmt = $db->prepare('SELECT tracking_number, map_latitude AS lat, map_longitude AS lng, submission_timestamp FROM traffic_complaints_master WHERE submission_timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR) AND tracking_number != :tracking');
-    $dupStmt->execute([':tracking' => $trackingNumber]);
+    $dupStmt = $db->prepare(
+        'SELECT complaint_id, tracking_id, latitude AS lat, longitude AS lng, submitted_at
+         FROM Complaints
+         WHERE submitted_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+           AND complaint_id != :cid
+           AND status NOT IN ("cancelled")'
+    );
+    $dupStmt->execute([':cid' => $newComplaintId]);
     while ($row = $dupStmt->fetch()) {
         $distance = getDistanceMeters((float)$coords['lat'], (float)$coords['lng'], (float)$row['lat'], (float)$row['lng']);
         if ($distance <= 100) {
-            $duplicates[] = ['tracking_number' => $row['tracking_number'], 'distance_m' => round($distance, 2), 'submitted_at' => $row['submission_timestamp']];
-            $ins = $db->prepare('INSERT IGNORE INTO duplicate_complaint_detection (primary_complaint_tracking_number, duplicate_complaint_tracking_number, distance_meters, time_difference_hours) VALUES (:primary, :duplicate, :distance, :hours)');
-            $ins->execute([
-                ':primary' => $trackingNumber,
-                ':duplicate' => $row['tracking_number'],
-                ':distance' => $distance,
-                ':hours' => 0,
-            ]);
+            $duplicates[] = ['tracking_number' => $row['tracking_id'], 'distance_m' => round($distance, 2), 'submitted_at' => $row['submitted_at']];
+            $db->prepare(
+                'INSERT IGNORE INTO duplicate_complaint_detection (primary_complaint_id, duplicate_complaint_id, distance_meters, time_difference_hours)
+                 VALUES (:primary, :dup, :dist, :hrs)'
+            )->execute([':primary' => $newComplaintId, ':dup' => $row['complaint_id'], ':dist' => $distance, ':hrs' => 0]);
         }
     }
 
-    successResponse(['tracking_number' => $trackingNumber, 'duplicates' => $duplicates]);
+    successResponse(['tracking_number' => $trackingId, 'duplicates' => $duplicates]);
 }
 
 if ($action === 'cancel') {
@@ -106,27 +127,27 @@ if ($action === 'cancel') {
         errorResponse('Only regular users can cancel complaints.', 403);
     }
 
-    $id = trim((string)($data['id'] ?? ''));
+    $id     = trim((string)($data['id'] ?? ''));
+    $userId = (int)($user['user_id'] ?? $user['id'] ?? 0);
     if ($id === '') {
         errorResponse('Complaint ID is required.');
     }
 
-    $stmt = $db->prepare('SELECT current_progress_status FROM traffic_complaints_master WHERE tracking_number = :id AND citizen_reporter_id = :user_id');
-    $stmt->execute([':id' => $id, ':user_id' => $user['id']]);
-    $status = $stmt->fetchColumn();
-
-    if (!$status) {
+    $stmt = $db->prepare('SELECT complaint_id, status FROM Complaints WHERE tracking_id = :id AND user_id = :uid');
+    $stmt->execute([':id' => $id, ':uid' => $userId]);
+    $row = $stmt->fetch();
+    if (!$row) {
         errorResponse('Complaint not found.');
     }
-    if ($status !== 'submitted') {
+    if ($row['status'] !== 'submitted') {
         errorResponse('Only complaints that are still submitted may be cancelled.');
     }
 
-    $update = $db->prepare('UPDATE traffic_complaints_master SET current_progress_status = :status WHERE tracking_number = :id');
-    $update->execute([':status' => 'cancelled', ':id' => $id]);
+    $db->prepare("UPDATE Complaints SET status = 'cancelled' WHERE complaint_id = :cid")
+       ->execute([':cid' => $row['complaint_id']]);
 
-    $stmt = $db->prepare('INSERT INTO complaint_lifecycle_timeline (tracking_number, status_reached, status_remarks) VALUES (:tracking, :status, :remarks)');
-    $stmt->execute([':tracking' => $id, ':status' => 'cancelled', ':remarks' => 'User cancelled the complaint before verification.']);
+    $db->prepare('INSERT INTO Status_history (complaint_id, changed_by, status, notes) VALUES (:cid, :uid, :status, :notes)')
+       ->execute([':cid' => $row['complaint_id'], ':uid' => $userId, ':status' => 'cancelled', ':notes' => 'User cancelled the complaint before verification.']);
 
     successResponse(['message' => 'Complaint cancelled successfully.']);
 }
@@ -136,24 +157,44 @@ if ($action === 'rate') {
         errorResponse('Only regular users may rate completed cases.', 403);
     }
 
-    $id = trim((string)($data['id'] ?? ''));
-    $rating = intval($data['rating'] ?? 0);
+    $id      = trim((string)($data['id'] ?? ''));
+    $rating  = intval($data['rating'] ?? 0);
     $comment = trim((string)($data['comment'] ?? ''));
+    $userId  = (int)($user['user_id'] ?? $user['id'] ?? 0);
 
     if ($id === '' || $rating < 1 || $rating > 5) {
-        errorResponse('A valid complaint ID and rating are required.');
+        errorResponse('A valid complaint ID and rating (1-5) are required.');
     }
 
-    $stmt = $db->prepare('SELECT current_progress_status FROM traffic_complaints_master WHERE tracking_number = :id AND citizen_reporter_id = :user_id');
-    $stmt->execute([':id' => $id, ':user_id' => $user['id']]);
-    $status = $stmt->fetchColumn();
-
-    if (!in_array($status, ['closed', 'resolved'], true)) {
+    $stmt = $db->prepare('SELECT complaint_id, status FROM Complaints WHERE tracking_id = :id AND user_id = :uid');
+    $stmt->execute([':id' => $id, ':uid' => $userId]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        errorResponse('Complaint not found.');
+    }
+    if (!in_array($row['status'], ['closed', 'resolved'], true)) {
         errorResponse('Only closed or resolved cases may be rated.');
     }
+    $complaintId = (int)$row['complaint_id'];
 
-    $update = $db->prepare('UPDATE traffic_complaints_master SET citizen_feedback_rating = :rating, citizen_feedback_comment = :comment, feedback_submitted_at = NOW() WHERE tracking_number = :id');
-    $update->execute([':rating' => $rating, ':comment' => $comment, ':id' => $id]);
+    $existStmt = $db->prepare('SELECT 1 FROM Ratings WHERE complaint_id = :cid AND user_id = :uid');
+    $existStmt->execute([':cid' => $complaintId, ':uid' => $userId]);
+    if ($existStmt->fetchColumn()) {
+        errorResponse('You have already rated this complaint.');
+    }
+
+    $offStmt = $db->prepare('SELECT field_officer_id FROM Assignments WHERE complaint_id = :cid ORDER BY assigned_at DESC LIMIT 1');
+    $offStmt->execute([':cid' => $complaintId]);
+    $officerId = $offStmt->fetchColumn() ?: null;
+
+    $db->prepare('INSERT INTO Ratings (complaint_id, user_id, field_officer_id, score, comments) VALUES (:cid, :uid, :oid, :score, :comments)')
+       ->execute([':cid' => $complaintId, ':uid' => $userId, ':oid' => $officerId, ':score' => $rating, ':comments' => $comment]);
+
+    if ($officerId) {
+        $db->prepare(
+            'UPDATE Field_officers SET average_user_rating = (SELECT AVG(score) FROM Ratings WHERE field_officer_id = :oid) WHERE officer_id = :oid'
+        )->execute([':oid' => $officerId]);
+    }
 
     successResponse(['message' => 'Thank you for your rating.']);
 }

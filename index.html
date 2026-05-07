@@ -1,82 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TRAPICO — Login</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="base.css?v=20260507" />
-  <link rel="stylesheet" href="login.css?v=20260507" />
+  <meta http-equiv="refresh" content="0; url=citizen-login.html" />
+  <title>TRAPICO</title>
+  <script>window.location.replace('citizen-login.html');</script>
 </head>
-<body>
-
-<div class="login-page">
-  <section class="login-left">
-    <div class="login-left-inner">
-      <div class="login-badge">TTMD • QUEZON CITY</div>
-      <h1 class="login-title">TRAPICO.</h1>
-      <p class="login-sub">Traffic Complaint Information System for selected barangays of Quezon City. Report, track, and resolve traffic issues in real time.</p>
-      <div class="login-stats" aria-label="System highlights">
-        <div class="login-stat-block">
-          <span class="login-stat-val">4</span>
-          <span class="login-stat-label">BARANGAYS</span>
-        </div>
-        <div class="login-stat-block">
-          <span class="login-stat-val">30m</span>
-          <span class="login-stat-label">RESPONSE</span>
-        </div>
-      </div>
-      <div class="login-watermark" aria-hidden="true">TRAPICO.</div>
-    </div>
-  </section>
-
-  <section class="login-right">
-    <div class="login-panel">
-      <div class="login-kicker">DISPATCH ACCESS</div>
-      <h2 class="login-form-title">SIGN IN</h2>
-
-      <div class="login-form">
-        <div class="form-group login-field-group">
-          <label class="login-label" for="login-user">EMPLOYEE ID</label>
-          <input id="login-user" class="login-input" type="text" placeholder="e.g. 2024-001" autocomplete="username" />
-        </div>
-
-        <div class="form-group login-field-group">
-          <label class="login-label" for="login-pass">PASSWORD</label>
-          <div class="password-wrap">
-            <input id="login-pass" class="login-input login-input-password" type="password" placeholder="******" autocomplete="current-password" />
-            <button type="button" class="password-toggle" id="password-toggle" onclick="togglePasswordVisibility()" aria-label="Show password">◔</button>
-          </div>
-        </div>
-
-        <div class="login-actions-row">
-          <a href="#" class="forgot-link" onclick="openForgotModal(event)">FORGOT PASSWORD?</a>
-        </div>
-
-        <div id="login-error" class="login-error hidden">Employee ID and password are required.</div>
-
-        <button class="login-submit" id="login-btn" onclick="doLogin()">ACCESS SYSTEM →</button>
-
-        <div class="login-footer-copy">Don't have an account? <a href="signup.html" class="signup-link">Sign up</a></div>
-      </div>
-    </div>
-  </section>
-
-</div>
-
-<div id="forgot-modal-overlay" class="login-modal-overlay hidden" onclick="closeForgotModal(event)" role="dialog" aria-modal="true" aria-labelledby="forgot-title">
-  <div class="login-modal-card">
-    <h3 id="forgot-title" class="login-modal-title">PASSWORD RESET REQUESTED</h3>
-    <hr class="login-modal-divider" />
-    <p class="login-modal-body">A password reset link has been sent to your registered email address. Please check your inbox (and spam folder) for further instructions.</p>
-    <button type="button" class="login-modal-close" onclick="closeForgotModal()">CLOSE</button>
-  </div>
-</div>
-
-<script src="data.js"></script>
-<script src="api.js"></script>
-<script src="login.js"></script>
-</body>
+<body></body>
 </html>

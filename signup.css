@@ -315,6 +315,13 @@
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
 }
 
+.su-switch-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 /* ── Footer link ─────────────────────────────────────────── */
 .su-footer-link {
   text-align: center;

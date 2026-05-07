@@ -5,7 +5,7 @@ USE trapico;
 -- ============================================================
 -- 1. USERS (Central identity table - base for all four roles)
 -- ============================================================
-CREATE TABLE Users (
+CREATE TABLE IF NOT EXISTS Users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
@@ -27,7 +27,7 @@ CREATE TABLE Users (
 -- ============================================================
 -- 2. FIELD_OFFICERS (Extends Users - operational field data)
 -- ============================================================
-CREATE TABLE Field_officers (
+CREATE TABLE IF NOT EXISTS Field_officers (
     officer_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT UNIQUE NOT NULL,
     badge_number VARCHAR(20) UNIQUE NOT NULL,
@@ -49,7 +49,7 @@ CREATE TABLE Field_officers (
 -- ============================================================
 -- 3. DISPATCH_OFFICERS (Extends Users - validation workload)
 -- ============================================================
-CREATE TABLE Dispatch_officers (
+CREATE TABLE IF NOT EXISTS Dispatch_officers (
     dispatch_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT UNIQUE NOT NULL,
     badge_number VARCHAR(20) UNIQUE NOT NULL,
@@ -66,7 +66,7 @@ CREATE TABLE Dispatch_officers (
 -- ============================================================
 -- 4. SYSTEM_ADMINISTRATORS (Extends Users - config & access)
 -- ============================================================
-CREATE TABLE System_administrators (
+CREATE TABLE IF NOT EXISTS System_administrators (
     admin_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT UNIQUE NOT NULL,
     employee_id VARCHAR(20) UNIQUE NOT NULL,
@@ -81,7 +81,7 @@ CREATE TABLE System_administrators (
 -- ============================================================
 -- 5. SYSTEM_CONFIGURATION
 -- ============================================================
-CREATE TABLE system_configuration (
+CREATE TABLE IF NOT EXISTS system_configuration (
     config_id INT AUTO_INCREMENT PRIMARY KEY,
     config_key VARCHAR(100) UNIQUE NOT NULL,
     config_value VARCHAR(255) NOT NULL,
@@ -94,7 +94,7 @@ CREATE TABLE system_configuration (
 -- ============================================================
 -- 6. COMPLAINT_CATEGORIES
 -- ============================================================
-CREATE TABLE complaint_categories (
+CREATE TABLE IF NOT EXISTS complaint_categories (
     category_id INT AUTO_INCREMENT PRIMARY KEY,
     category_name VARCHAR(100) UNIQUE NOT NULL,
     category_description TEXT,
@@ -105,7 +105,7 @@ CREATE TABLE complaint_categories (
 -- ============================================================
 -- 7. COMPLAINTS (Primary transactional entity)
 -- ============================================================
-CREATE TABLE Complaints (
+CREATE TABLE IF NOT EXISTS Complaints (
     complaint_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT,
     tracking_id VARCHAR(50) UNIQUE NOT NULL,
@@ -134,7 +134,7 @@ CREATE TABLE Complaints (
 -- ============================================================
 -- 8. DUPLICATE_COMPLAINT_DETECTION
 -- ============================================================
-CREATE TABLE duplicate_complaint_detection (
+CREATE TABLE IF NOT EXISTS duplicate_complaint_detection (
     duplicate_id INT AUTO_INCREMENT PRIMARY KEY,
     primary_complaint_id INT,
     duplicate_complaint_id INT,
@@ -149,7 +149,7 @@ CREATE TABLE duplicate_complaint_detection (
 -- ============================================================
 -- 9. STATUS_HISTORY (Chronological audit trail of complaint transitions)
 -- ============================================================
-CREATE TABLE Status_history (
+CREATE TABLE IF NOT EXISTS Status_history (
     history_id INT AUTO_INCREMENT PRIMARY KEY,
     complaint_id INT NOT NULL,
     changed_by INT,
@@ -164,7 +164,7 @@ CREATE TABLE Status_history (
 -- ============================================================
 -- 10. MEDIA (Photo/video evidence with EXIF metadata)
 -- ============================================================
-CREATE TABLE Media (
+CREATE TABLE IF NOT EXISTS Media (
     media_id INT AUTO_INCREMENT PRIMARY KEY,
     complaint_id INT NOT NULL,
     file_url VARCHAR(255) NOT NULL,
@@ -182,7 +182,7 @@ CREATE TABLE Media (
 -- ============================================================
 -- 11. ASSIGNMENTS (Deployment - links Complaints to Field_officers and Dispatch_officers)
 -- ============================================================
-CREATE TABLE Assignments (
+CREATE TABLE IF NOT EXISTS Assignments (
     assignment_id INT AUTO_INCREMENT PRIMARY KEY,
     complaint_id INT NOT NULL,
     field_officer_id INT NOT NULL,
@@ -211,7 +211,7 @@ CREATE TABLE Assignments (
 -- ============================================================
 -- 12. RESOLUTION_REPORTS
 -- ============================================================
-CREATE TABLE resolution_reports (
+CREATE TABLE IF NOT EXISTS resolution_reports (
     report_id INT AUTO_INCREMENT PRIMARY KEY,
     complaint_id INT NOT NULL,
     assignment_id INT NOT NULL,
@@ -240,7 +240,7 @@ CREATE TABLE resolution_reports (
 -- ============================================================
 -- 13. RATINGS (Service evaluations - user feedback and officer performance)
 -- ============================================================
-CREATE TABLE Ratings (
+CREATE TABLE IF NOT EXISTS Ratings (
     rating_id INT AUTO_INCREMENT PRIMARY KEY,
     complaint_id INT NOT NULL,
     user_id INT,
@@ -257,7 +257,7 @@ CREATE TABLE Ratings (
 -- ============================================================
 -- 14. NOTIFICATIONS (Real-time alerts delivered to users)
 -- ============================================================
-CREATE TABLE Notifications (
+CREATE TABLE IF NOT EXISTS Notifications (
     notification_id INT AUTO_INCREMENT PRIMARY KEY,
     complaint_id INT,
     user_id INT,
@@ -278,7 +278,7 @@ CREATE TABLE Notifications (
 -- ============================================================
 -- 15. PASSWORD_RESET_TOKENS
 -- ============================================================
-CREATE TABLE password_reset_tokens (
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
     token_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT,
     reset_token VARCHAR(255) UNIQUE NOT NULL,
@@ -292,7 +292,7 @@ CREATE TABLE password_reset_tokens (
 -- ============================================================
 -- 16. AUDIT_LOGS (Immutable ledger - Data Privacy Act compliance)
 -- ============================================================
-CREATE TABLE Audit_logs (
+CREATE TABLE IF NOT EXISTS Audit_logs (
     log_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id INT,
     action VARCHAR(100) NOT NULL,
@@ -313,7 +313,7 @@ CREATE TABLE Audit_logs (
 -- ============================================================
 -- 17. ACCOUNT_UNLOCK_HISTORY
 -- ============================================================
-CREATE TABLE account_unlock_history (
+CREATE TABLE IF NOT EXISTS account_unlock_history (
     unlock_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT,
     locked_reason TEXT,
@@ -327,7 +327,7 @@ CREATE TABLE account_unlock_history (
 -- ============================================================
 -- 18. DELETED_RECORDS_LOG
 -- ============================================================
-CREATE TABLE deleted_records_log (
+CREATE TABLE IF NOT EXISTS deleted_records_log (
     deletion_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     deleted_by_admin_id INT NOT NULL,
     record_type VARCHAR(100) NOT NULL,
@@ -343,7 +343,7 @@ CREATE TABLE deleted_records_log (
 -- ============================================================
 -- 19. PERFORMANCE_METRICS_CACHE
 -- ============================================================
-CREATE TABLE performance_metrics_cache (
+CREATE TABLE IF NOT EXISTS performance_metrics_cache (
     metric_id INT AUTO_INCREMENT PRIMARY KEY,
     metric_type VARCHAR(100) NOT NULL,
     metric_date DATE NOT NULL,
@@ -360,7 +360,7 @@ CREATE TABLE performance_metrics_cache (
 -- ============================================================
 
 -- Users (all roles in single table)
-INSERT INTO Users (username, email, password_hash, full_name, phone_number, barangay, role, is_active) VALUES
+INSERT IGNORE INTO Users (username, email, password_hash, full_name, phone_number, barangay, role, is_active) VALUES
 ('rikka',        'rikka@gmail.com',         'Password123', 'Rikka Test',        '+639123456789', 'Commonwealth',  'citizen',          TRUE),
 ('rosette',      'rosette@gmail.com',        'Password123', 'Rosette Test',      '+639987654321', 'Batasan Hills', 'citizen',          TRUE),
 ('marcos',       'marcos@gmail.com',         'Password123', 'Marcos Test',       '+639112233445', 'Makati',        'citizen',          TRUE),
@@ -372,22 +372,22 @@ INSERT INTO Users (username, email, password_hash, full_name, phone_number, bara
 ('cruz',         'cruz.a@trapico.gov',       'FieldPass3',  'Officer Cruz',      '+639345678901', 'Makati',        'field_officer',    TRUE);
 
 -- Field_officers (extend Users for field officers: user_id 7, 8, 9)
-INSERT INTO Field_officers (user_id, badge_number, assigned_barangay, is_available, current_latitude, current_longitude) VALUES
+INSERT IGNORE INTO Field_officers (user_id, badge_number, assigned_barangay, is_available, current_latitude, current_longitude) VALUES
 (7, 'EMP-2024-0032', 'Commonwealth', 'available', 14.6760, 121.0437),
 (8, 'EMP-2024-0033', 'BGC',          'offline',   14.5994, 121.0423),
 (9, 'EMP-2024-0034', 'Makati',       'busy',      14.5631, 121.0203);
 
 -- Dispatch_officers (extend Users for dispatch officers: user_id 4, 5)
-INSERT INTO Dispatch_officers (user_id, badge_number, assigned_barangay, is_on_duty) VALUES
+INSERT IGNORE INTO Dispatch_officers (user_id, badge_number, assigned_barangay, is_on_duty) VALUES
 (4, 'DISP-2024-0001', 'Commonwealth', TRUE),
 (5, 'DISP-2024-0002', 'BGC',          TRUE);
 
 -- System_administrators (extend Users for admin: user_id 6)
-INSERT INTO System_administrators (user_id, employee_id, access_level) VALUES
+INSERT IGNORE INTO System_administrators (user_id, employee_id, access_level) VALUES
 (6, 'ADM-2024-0001', 'system_admin');
 
 -- System Configuration
-INSERT INTO system_configuration (config_key, config_value, config_description, last_updated_by) VALUES
+INSERT IGNORE INTO system_configuration (config_key, config_value, config_description, last_updated_by) VALUES
 ('GEOFENCE_RADIUS_METERS',          '150',  'Radius for field officer geofence check-in',         1),
 ('RESPONSE_TIME_LIMIT_MINUTES',     '30',   'Maximum response time for field officers',            1),
 ('DUPLICATE_DETECTION_RADIUS_METERS','100', 'Radius for duplicate complaint detection',            1),
@@ -395,7 +395,7 @@ INSERT INTO system_configuration (config_key, config_value, config_description, 
 ('ARRIVAL_WINDOW_MINUTES',          '30',   'Arrival window for field officer arrival countdown',  1);
 
 -- Complaint Categories
-INSERT INTO complaint_categories (category_name, category_description, is_active) VALUES
+INSERT IGNORE INTO complaint_categories (category_name, category_description, is_active) VALUES
 ('Traffic Obstruction',      'Vehicle blocking intersection or road',          TRUE),
 ('Illegal Parking',          'Vehicle parked illegally',                        TRUE),
 ('Abandoned Vehicle',        'Unattended vehicle causing obstruction',          TRUE),
@@ -406,13 +406,13 @@ INSERT INTO complaint_categories (category_name, category_description, is_active
 ('Noise Violation',          'Excessive noise from vehicles',                   TRUE);
 
 -- Complaints (user_id: 1=rikka, 2=rosette, 3=marcos; dispatch_id: 1=fae)
-INSERT INTO Complaints (user_id, tracking_id, dispatch_id, category, description, incident_datetime, address, asset_town, latitude, longitude, priority, status, is_anonymous) VALUES
+INSERT IGNORE INTO Complaints (user_id, tracking_id, dispatch_id, category, description, incident_datetime, address, asset_town, latitude, longitude, priority, status, is_anonymous) VALUES
 (1, 'TRAPICO-2026-03-000016', 1, 'Traffic Obstruction', 'Large truck blocking intersection at Commonwealth Ave', NOW(), 'Commonwealth Ave, QC', 'Commonwealth', 14.6760, 121.0437, 'urgent',  'verified',    FALSE),
 (2, 'TRAPICO-2026-03-000017', 1, 'Illegal Parking',     'Blue sedan parked illegally near Makati Avenue',       NOW(), 'Makati Avenue, Makati', 'BGC',          14.5994, 121.0423, 'high',    'assigned',    FALSE),
 (3, 'TRAPICO-2026-03-000018', 1, 'Road Hazard',         'Large pothole on Gil Puyat Avenue',                    NOW(), 'Gil Puyat Ave, Makati', 'Makati',       14.5631, 121.0203, 'medium',  'in_progress', TRUE);
 
 -- Status_history
-INSERT INTO Status_history (complaint_id, changed_by, status, notes) VALUES
+INSERT IGNORE INTO Status_history (complaint_id, changed_by, status, notes) VALUES
 (1, 1, 'submitted',    'Complaint received by system'),
 (1, 4, 'verified',     'Complaint validated by Dispatcher - Fae Admin'),
 (2, 2, 'submitted',    'Complaint received by system'),
@@ -424,30 +424,31 @@ INSERT INTO Status_history (complaint_id, changed_by, status, notes) VALUES
 (3, 4, 'in_progress',  'Officer Javier checked in via geofence');
 
 -- Assignments (complaint_id→field_officer_id: 1→Rivera(1), 2→Rivera(1), 3→Javier(2))
-INSERT INTO Assignments (complaint_id, field_officer_id, dispatch_id, response_deadline, has_checked_in, assignment_status) VALUES
+INSERT IGNORE INTO Assignments (complaint_id, field_officer_id, dispatch_id, response_deadline, has_checked_in, assignment_status) VALUES
 (1, 1, 1, DATE_ADD(NOW(), INTERVAL 30 MINUTE), FALSE, 'pending'),
 (2, 1, 1, DATE_ADD(NOW(), INTERVAL 30 MINUTE), FALSE, 'pending'),
 (3, 2, 1, DATE_ADD(NOW(), INTERVAL 30 MINUTE), TRUE,  'in_progress');
 
 -- Media
-INSERT INTO Media (complaint_id, file_url, file_type, evidence_stage, uploaded_by_role) VALUES
+INSERT IGNORE INTO Media (complaint_id, file_url, file_type, evidence_stage, uploaded_by_role) VALUES
 (1, 'uploads/complaints/TRAPICO-2026-03-000016/photo1.jpg', 'photo', 'initial_submission', 'citizen'),
 (2, 'uploads/complaints/TRAPICO-2026-03-000017/photo1.jpg', 'photo', 'initial_submission', 'citizen'),
 (3, 'uploads/complaints/TRAPICO-2026-03-000018/photo1.jpg', 'photo', 'initial_submission', 'citizen');
 
 -- Notifications (user_id: citizen=1, officer=7 for Rivera)
-INSERT INTO Notifications (complaint_id, user_id, recipient_role, notification_type, notification_title, message, is_read) VALUES
+INSERT IGNORE INTO Notifications (complaint_id, user_id, recipient_role, notification_type, notification_title, message, is_read) VALUES
 (1, 1, 'citizen',       'complaint_verified', 'Complaint Verified', 'Your complaint has been verified and assigned to a field officer.', TRUE),
 (1, 7, 'field_officer', 'officer_assigned',   'New Assignment',     'You have been assigned to handle a traffic complaint.',            FALSE),
 (3, 3, 'citizen',       'complaint_resolved', 'Complaint Resolved', 'Thank you! Your complaint has been resolved.',                    FALSE);
 
 -- Password Reset Token (example)
-INSERT INTO password_reset_tokens (user_id, reset_token, token_expiry, is_used) VALUES
+INSERT IGNORE INTO password_reset_tokens (user_id, reset_token, token_expiry, is_used) VALUES
 (1, 'abc123def456ghi789', DATE_ADD(NOW(), INTERVAL 24 HOUR), FALSE);
 
 -- Audit_logs
-INSERT INTO Audit_logs (user_id, action, entity_type, entity_id, action_details, action_status) VALUES
+INSERT IGNORE INTO Audit_logs (user_id, action, entity_type, entity_id, action_details, action_status) VALUES
 (6, 'complaint_verified', 'complaint', 'TRAPICO-2026-03-000016', 'Complaint verified after duplicate check',        'success'),
 (6, 'officer_assigned',   'assignment','TRAPICO-2026-03-000016', 'Officer Rivera assigned to complaint',            'success'),
 (7, 'geofence_checkin',   'geofence',  'TRAPICO-2026-03-000018', 'Officer checked in at complaint location',        'success'),
 (6, 'user_created',       'user',      '2',                      'New citizen account created',                     'success');
+
