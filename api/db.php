@@ -12,6 +12,7 @@ $isLocalHost = in_array($hostOnly, ['localhost', '127.0.0.1'], true)
     || (bool)preg_match('/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/', $hostOnly)
     || (bool)preg_match('/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/', strtolower($serverName));
 
+    
 if ($isLocalHost) {
     define('DB_HOST', '127.0.0.1');
     define('DB_NAME', 'trapico');
