@@ -28,12 +28,22 @@ const LEGAL_TEXT_BY_ROLE = {
       body: 'TRAPICO collects your account, contact, and assignment data strictly for dispatch operations. Your information is stored securely and processed only for system functionality and authorized government use.',
     },
   },
+  field: {
+    terms: {
+      head: 'TERMS AND CONDITIONS',
+      body: 'By creating an account, you agree to use TRAPICO only for official traffic operations and to provide accurate information. False reports, unauthorized access, or misuse of this system may result in account suspension and legal action.',
+    },
+    privacy: {
+      head: 'PRIVACY POLICY',
+      body: 'TRAPICO collects your account, contact, and assignment data strictly for field operations. Your information is stored securely and processed only for system functionality and authorized government use.',
+    },
+  },
 };
 
 const LEGAL_TEXT = LEGAL_TEXT_BY_ROLE[signupRole] || LEGAL_TEXT_BY_ROLE.dispatch;
 
-function hasEnhancedDispatchFields() {
-  return signupRole === 'dispatch' && !!document.getElementById('dis-employeeid');
+function hasEnhancedOfficerFields() {
+  return (signupRole === 'dispatch' || signupRole === 'field') && !!document.getElementById('dis-employeeid');
 }
 
 function hasEnhancedCitizenFields() {
@@ -170,7 +180,7 @@ function clearError() {
 }
 
 function isFormReady() {
-  const enhancedDispatch = hasEnhancedDispatchFields();
+  const enhancedOfficer = hasEnhancedOfficerFields();
   const enhancedCitizen = hasEnhancedCitizenFields();
   const username = getVal('dis-username');
   const phone = getVal('dis-phone');
@@ -180,7 +190,7 @@ function isFormReady() {
   const terms = document.getElementById('dis-terms').checked;
   const privacy = document.getElementById('dis-privacy').checked;
 
-  if (!enhancedDispatch && !enhancedCitizen) {
+  if (!enhancedOfficer && !enhancedCitizen) {
     return !!(username && phone && barangay && password && confirm && terms && privacy);
   }
 
@@ -235,7 +245,7 @@ function updateSubmitState() {
 async function submitDispatchSignup() {
   clearError();
 
-  const enhancedDispatch = hasEnhancedDispatchFields();
+  const enhancedOfficer = hasEnhancedOfficerFields();
   const enhancedCitizen = hasEnhancedCitizenFields();
 
   const firstName = getVal('dis-firstname');
@@ -250,7 +260,7 @@ async function submitDispatchSignup() {
   const password = getVal('dis-password');
   const confirm = getVal('dis-confirm');
 
-  if (enhancedDispatch) {
+  if (enhancedOfficer) {
     if (!firstName) return showError('Please enter your first name.');
     if (!lastName) return showError('Please enter your last name.');
     if (!employeeId) return showError('Please enter your employee ID.');

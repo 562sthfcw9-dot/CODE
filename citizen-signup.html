@@ -90,11 +90,16 @@
 
           <div class="su-field su-col-full">
             <label class="su-label" for="dis-confirm">CONFIRM PASSWORD *</label>
-            <input id="dis-confirm" class="su-input" type="password" placeholder="••••••••••" autocomplete="new-password" />
+            <div class="su-pw-wrap">
+              <input id="dis-confirm" class="su-input su-pw-input" type="password" placeholder="••••••••••" autocomplete="new-password" />
+              <button class="su-pw-toggle" type="button" id="dis-confirm-toggle" onclick="toggleSuPassword('dis-confirm','dis-confirm-toggle')" aria-label="Show confirm password">
+                <span class="su-eye-icon" aria-hidden="true"></span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <div class="su-legal">
+        <div class="su-legal"> 
           <label class="su-check-row">
             <input type="checkbox" id="dis-terms" class="su-checkbox" onchange="updateSubmitState()" />
             <span class="su-check-label">I AGREE TO <button type="button" class="su-legal-link" onclick="openLegalModal('terms')">THE TERMS AND CONDITIONS</button></span>

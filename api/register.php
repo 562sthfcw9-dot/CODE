@@ -7,6 +7,7 @@ $username = trim((string)($data['username'] ?? ''));
 $emailIn  = trim((string)($data['email'] ?? ''));
 $first    = trim((string)($data['first_name'] ?? ''));
 $last     = trim((string)($data['last_name'] ?? ''));
+$badgeId  = trim((string)($data['badge_id'] ?? ''));
 $phone    = trim((string)($data['phone_number'] ?? ''));
 $barangay = trim((string)($data['home_barangay'] ?? ''));
 $password = (string)($data['password'] ?? '');
@@ -136,13 +137,21 @@ try {
            ->execute([':uid' => $newUserId, ':badge' => $badge, ':brgy' => $barangay]);
 
     } else {
-        /* field officer — badge_number = username (their employee ID) */
-        $exists = $db->prepare("SELECT 1 FROM Field_officers WHERE badge_number = :badge LIMIT 1");
-        $exists->execute([':badge' => $username]);
-        if ($exists->fetchColumn()) {
-            errorResponse('Employee ID is already registered.');
+        if ($emailIn === '') {
+            errorResponse('Email address is required.');
         }
-        $email = uniqueEmail($db, normalizeEmail($username, $role));
+        if (!filter_var($emailIn, FILTER_VALIDATE_EMAIL)) {
+            errorResponse('Please provide a valid email address.');
+        }
+
+        $badgeNumber = $badgeId !== '' ? $badgeId : $username;
+
+        $exists = $db->prepare("SELECT 1 FROM Field_officers WHERE badge_number = :badge LIMIT 1");
+        $exists->execute([':badge' => $badgeNumber]);
+        if ($exists->fetchColumn()) {
+            errorResponse('Badge ID is already registered.');
+        }
+        $email = uniqueEmail($db, $emailIn);
         $stmt  = $db->prepare(
             'INSERT INTO Users (username, email, password_hash, full_name, phone_number, barangay, role)
              VALUES (:username, :email, :hash, :name, :phone, :barangay, :role_val)'
@@ -160,7 +169,7 @@ try {
         $db->prepare(
             'INSERT INTO Field_officers (user_id, badge_number, assigned_barangay)
              VALUES (:uid, :badge, :brgy)'
-        )->execute([':uid' => $newUserId, ':badge' => $username, ':brgy' => $barangay]);
+        )->execute([':uid' => $newUserId, ':badge' => $badgeNumber, ':brgy' => $barangay]);
     }
 } catch (PDOException $e) {
     errorResponse('Database error: ' . $e->getMessage(), 500);

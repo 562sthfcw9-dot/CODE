@@ -12,10 +12,10 @@ const roleConfig = {
     requiredMessage: 'Employee ID and password are required.',
   },
   field: {
-    kicker: 'FIELD OFFICER ACCESS',
-    idLabel: 'EMPLOYEE ID',
-    idPlaceholder: 'e.g. 2024-001',
-    requiredMessage: 'Employee ID and password are required.',
+    kicker: 'DISPATCH ACCESS',
+    idLabel: 'EMAIL OR USERNAME',
+    idPlaceholder: 'e.g. fae@trapico.gov',
+    requiredMessage: 'Username or email address and password are required.',
   },
   regular: {
     kicker: 'CITIZEN ACCESS',

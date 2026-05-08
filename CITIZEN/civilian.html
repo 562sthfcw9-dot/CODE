@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../base.css?v=20260508a" />
-  <link rel="stylesheet" href="civilian.css?v=20260508a" />
+  <link rel="stylesheet" href="civilian.css?v=20260510c" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 </head>
 <body>
@@ -34,6 +34,7 @@
       <div class="nav-item"        id="nav-report"      onclick="setActivePage('report')">      <span class="nav-icon">📝</span> File a Complaint    </div>
       <div class="nav-item"        id="nav-complaints"  onclick="setActivePage('complaints')">  <span class="nav-icon">📋</span> My Complaints       <span class="nav-badge" id="badge-complaints">3</span> </div>
       <div class="nav-item"        id="nav-profile"     onclick="setActivePage('profile')">     <span class="nav-icon">👤</span> My Profile          </div>
+      <div class="nav-item"        id="nav-about"       onclick="setActivePage('about')">       <span class="nav-icon">ℹ️</span> About Us            </div>
     </nav>
     <div class="sidebar-footer">
       <div class="logout-btn" onclick="logout()">
@@ -277,71 +278,265 @@
 
       <!-- ═══════════════ PAGE: MY PROFILE ═══════════════ -->
       <section id="page-profile" class="page-section hidden">
-        <div class="profile-grid">
+        <div class="profile-layout">
 
-          <!-- Profile Picture -->
-          <div class="card">
-            <div class="card-head"><span class="card-title">Profile Picture</span></div>
-            <div style="text-align:center;padding:20px 0">
-              <div id="profile-avatar-display" style="width:120px;height:120px;margin:0 auto;background:var(--surface);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:48px;cursor:pointer;border:2px solid var(--border);transition:border-color 0.2s" onclick="document.getElementById('profile-picture-input').click()">
-                <span id="profile-avatar-letter">JD</span>
-              </div>
-              <div style="margin-top:12px;font-size:12px;color:var(--mist)">Click to upload or change picture</div>
-              <input type="file" id="profile-picture-input" accept="image/*" style="display:none" onchange="uploadProfilePicture(event)" />
-              <div id="profile-picture-status" style="margin-top:10px;font-size:12px;color:var(--mist)"></div>
-            </div>
-          </div>
-
-          <!-- Personal Info -->
-          <div class="card">
-            <div class="card-head">
-              <span class="card-title">Personal Information</span>
-              <button class="btn-secondary btn-sm" id="edit-btn" onclick="toggleProfileEdit()">✎ Edit</button>
-            </div>
-            <div id="profile-view">
-              <div class="detail-grid">
-                <div class="detail-item"><label>Full Name</label><span id="prof-name">Juan D. Oe</span></div>
-                <div class="detail-item"><label>Username</label><span id="prof-username">jdoe</span></div>
-                <div class="detail-item"><label>Email</label><span id="prof-email">jdoe@gmail.com</span></div>
-                <div class="detail-item"><label>Phone</label><span id="prof-phone">+63 912 345 6789</span></div>
-                <div class="detail-item"><label>Barangay</label><span id="prof-brgy">Commonwealth</span></div>
-                <div class="detail-item"><label>City</label><span id="prof-city">Quezon City</span></div>
-              </div>
-            </div>
-            <div id="profile-edit" class="hidden">
-              <div class="form-row">
-                <div class="form-group"><label>Full Name</label><input id="edit-profile-name" class="form-input" value="Juan D. Oe" /></div>
-                <div class="form-group"><label>Username</label><input id="edit-profile-username" class="form-input" value="jdoe" readonly /></div>
-              </div>
-              <div class="form-row">
-                <div class="form-group"><label>Email</label><input id="edit-profile-email" class="form-input" type="email" value="jdoe@gmail.com" /></div>
-                <div class="form-group"><label>Phone</label><input id="edit-profile-phone" class="form-input" value="+63 912 345 6789" /></div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Barangay</label>
-                  <select id="edit-profile-brgy" class="form-select">
-                    <option selected>Commonwealth</option>
-                    <option>Batasan Hills</option><option>Central</option><option>Sto. Cristo</option>
-                  </select>
+          <!-- LEFT: Avatar + Quick Stats -->
+          <div class="card prof-left-card">
+            <div class="prof-avatar-block">
+              <div class="prof-avatar-wrap">
+                <div id="profile-avatar-display" class="prof-avatar-circle" onclick="document.getElementById('profile-picture-input').click()" title="Click to change photo">
+                  <span id="profile-avatar-letter">JD</span>
                 </div>
-                <div class="form-group"><label>City</label><input id="edit-profile-city" class="form-input" value="Quezon City" readonly /></div>
+                <button type="button" class="prof-avatar-upload" onclick="document.getElementById('profile-picture-input').click()" title="Upload profile picture">+</button>
               </div>
-              <div class="btn-row">
-                <button class="btn-secondary" onclick="toggleProfileEdit()">Cancel</button>
-                <button class="btn-primary" style="padding:10px 24px;font-size:15px" onclick="saveProfile()">Save Changes</button>
-              </div>
+              <input type="file" id="profile-picture-input" accept="image/*" style="display:none" onchange="uploadProfilePicture(event)" />
+              <div class="prof-upload-copy">Upload or change your profile picture</div>
+              <div id="profile-picture-status" class="prof-upload-status"></div>
+              <div class="prof-display-name" id="prof-display-name">Juan D. Oe</div>
+              <div class="prof-subtitle">Regular User · Verified</div>
+              <div class="prof-active-badge">✓ Account Active</div>
+            </div>
+            <div class="prof-stats-block">
+              <div class="prof-stats-heading">Quick Stats</div>
+              <div class="prof-stat-row"><span class="prof-stat-label">Total Complaints</span><span class="prof-stat-val" id="stat-total">0</span></div>
+              <div class="prof-stat-row"><span class="prof-stat-label">Resolved</span><span class="prof-stat-val" id="stat-resolved">0</span></div>
+              <div class="prof-stat-row"><span class="prof-stat-label">Pending</span><span class="prof-stat-val" id="stat-pending">0</span></div>
+              <div class="prof-stat-row"><span class="prof-stat-label">Cancelled</span><span class="prof-stat-val" id="stat-cancelled">0</span></div>
             </div>
           </div>
 
-          <!-- Security -->
+          <!-- RIGHT: Personal Info + Security -->
+          <div class="prof-right-col">
+
+            <!-- Personal Information -->
+            <div class="card prof-panel-card">
+              <div class="card-head">
+                <span class="card-title">Personal Information</span>
+                <button class="btn-secondary btn-sm" id="edit-btn" onclick="toggleProfileEdit()">✎ Edit</button>
+              </div>
+              <div class="prof-panel-body" id="profile-view">
+                <div class="prof-info-grid">
+                  <div class="prof-info-item"><div class="prof-info-label">FULL NAME</div><div class="prof-info-val" id="prof-name">—</div></div>
+                  <div class="prof-info-item"><div class="prof-info-label">USERNAME</div><div class="prof-info-val" id="prof-username">—</div></div>
+                  <div class="prof-info-item"><div class="prof-info-label">EMAIL</div><div class="prof-info-val" id="prof-email">—</div></div>
+                  <div class="prof-info-item"><div class="prof-info-label">PHONE</div><div class="prof-info-val" id="prof-phone">—</div></div>
+                  <div class="prof-info-item"><div class="prof-info-label">BARANGAY</div><div class="prof-info-val" id="prof-brgy">—</div></div>
+                  <div class="prof-info-item"><div class="prof-info-label">CITY</div><div class="prof-info-val" id="prof-city">Quezon City</div></div>
+                </div>
+              </div>
+              <div id="profile-edit" class="prof-panel-body hidden">
+                <div class="form-row">
+                  <div class="form-group"><label>Full Name</label><input id="edit-profile-name" class="form-input" /></div>
+                  <div class="form-group"><label>Username</label><input id="edit-profile-username" class="form-input" readonly /></div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group"><label>Email</label><input id="edit-profile-email" class="form-input" type="email" /></div>
+                  <div class="form-group"><label>Phone</label><input id="edit-profile-phone" class="form-input" /></div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Barangay</label>
+                    <select id="edit-profile-brgy" class="form-select">
+                      <option value="">Select barangay…</option>
+                      <option>Alicia</option><option>Amihan</option><option>Apolonio Samson</option>
+                      <option>Bagong Barrio</option><option>Bagong Lipunan ng Crame</option><option>Bagong Pag-asa</option>
+                      <option>Bagong Silangan</option><option>Bagumbayan</option><option>Bagumbuhay</option>
+                      <option>Bahay Toro</option><option>Batasan Hills</option><option>Batingan</option>
+                      <option>Bayanihan</option><option>Blue Ridge A</option><option>Blue Ridge B</option>
+                      <option>Botocan</option><option>Bungad</option><option>Camp Aguinaldo</option>
+                      <option>Capri</option><option>Central</option><option>Claro</option>
+                      <option>Commonwealth</option><option>Culiat</option><option>Damar</option>
+                      <option>Damayan</option><option>Damayan Lagi</option><option>Del Monte</option>
+                      <option>E. Rodriguez</option><option>East Kamias</option><option>Escopa I</option>
+                      <option>Escopa II</option><option>Escopa III</option><option>Escopa IV</option>
+                      <option>Fairview</option><option>Greater Lagro</option><option>Gulod</option>
+                      <option>Holy Spirit</option><option>Horseshoe</option><option>Immaculate Concepcion</option>
+                      <option>Kaligayahan</option><option>Kalusugan</option><option>Kamuning</option>
+                      <option>Katipunan</option><option>Kaunlaran</option><option>Kristong Hari</option>
+                      <option>Krus na Ligas</option><option>Laging Handa</option><option>Libis</option>
+                      <option>Lourdes</option><option>Loyola Heights</option><option>Maharlika</option>
+                      <option>Malaya</option><option>Manresa</option><option>Mariana</option>
+                      <option>Mariblo</option><option>Marilag</option><option>Masagana</option>
+                      <option>Masambong</option><option>Matandang Balara</option><option>Milagrosa</option>
+                      <option>Nagkaisang Nayon</option><option>New Era</option><option>Novaliches Proper</option>
+                      <option>Obrero</option><option>Old Capitol Site</option><option>Pag-ibig sa Nayon</option>
+                      <option>Paltok</option><option>Pansol</option><option>Paraiso</option>
+                      <option>Pasong Putik Proper</option><option>Pasong Tamo</option><option>Phil-Am</option>
+                      <option>Pinagkaisahan</option><option>Pinyahan</option><option>Project 6</option>
+                      <option>Quirino 2-A</option><option>Quirino 2-B</option><option>Quirino 2-C</option>
+                      <option>Quirino 3-A</option><option>Ramon Magsaysay</option><option>Roxas</option>
+                      <option>Sacred Heart</option><option>Salvacion</option><option>San Agustin</option>
+                      <option>San Antonio</option><option>San Bartolome</option><option>San Isidro Galas</option>
+                      <option>San Isidro Labrador</option><option>San Jose</option><option>San Martin de Porres</option>
+                      <option>San Roque</option><option>San Vicente</option><option>Sangandaan</option>
+                      <option>Santa Cruz</option><option>Santa Lucia</option><option>Santa Monica</option>
+                      <option>Santo Cristo</option><option>Santo Niño</option><option>Santol</option>
+                      <option>Siena</option><option>Silangan</option><option>Socorro</option>
+                      <option>South Triangle</option><option>St. Ignatius</option><option>Sto. Domingo</option>
+                      <option>Tagumpay</option><option>Talayan</option><option>Talipapa</option>
+                      <option>Tandang Sora</option><option>Tatalon</option><option>Teachers Village East</option>
+                      <option>Teachers Village West</option><option>U.P. Campus</option><option>U.P. Village</option>
+                      <option>Ugong Norte</option><option>Vasra</option><option>Veterans Village</option>
+                      <option>Villa Maria Clara</option><option>Visayas</option><option>West Kamias</option>
+                      <option>West Triangle</option><option>White Plains</option>
+                    </select>
+                  </div>
+                  <div class="form-group"><label>City</label><input id="edit-profile-city" class="form-input" value="Quezon City" readonly /></div>
+                </div>
+                <div class="btn-row">
+                  <button class="btn-secondary" onclick="toggleProfileEdit()">Cancel</button>
+                  <button class="btn-primary" style="padding:10px 24px;font-size:15px" onclick="saveProfile()">Save Changes</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Security -->
+            <div class="card prof-panel-card">
+              <div class="card-head"><span class="card-title">Security – Change Password</span></div>
+              <div class="prof-panel-body">
+              <div class="form-group">
+                <label class="prof-info-label">CURRENT PASSWORD</label>
+                <div class="password-input-wrap">
+                  <input id="pw-current" class="form-input password-input" type="password" placeholder="Enter current password" />
+                  <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('pw-current', this)" aria-label="Show current password" title="Show password">👁</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="prof-info-label">NEW PASSWORD</label>
+                <div class="password-input-wrap">
+                  <input id="pw-new" class="form-input password-input" type="password" placeholder="Min. 8 characters, 1 uppercase, 1 number" />
+                  <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('pw-new', this)" aria-label="Show new password" title="Show password">👁</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="prof-info-label">CONFIRM NEW PASSWORD</label>
+                <div class="password-input-wrap">
+                  <input id="pw-confirm" class="form-input password-input" type="password" placeholder="Repeat new password" />
+                  <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('pw-confirm', this)" aria-label="Show confirm password" title="Show password">👁</button>
+                </div>
+              </div>
+              <div class="alert alert-warn prof-password-hint" style="margin:12px 0">🔐 <div>Must be at least 8 characters, one uppercase letter, and one number.</div></div>
+              <button class="btn-primary prof-password-btn" onclick="updatePassword()">UPDATE PASSWORD</button>
+              </div>
+            </div>
+
+          </div><!-- /prof-right-col -->
+        </div>
+      </section>
+
+      <!-- ═══════════════ PAGE: ABOUT US ═══════════════ -->
+      <section id="page-about" class="page-section hidden">
+        <div class="about-wrap">
+
+          <div class="card about-hero-card">
+            <div class="about-kicker">TRAPICO SYSTEM</div>
+            <h2 class="about-title">Modernizing Traffic Enforcement &amp; Dispatch</h2>
+            <p class="about-lead">TRAPICO is a unified complaint and dispatch platform built for traffic enforcement agencies in Quezon City. We streamline complaint intake, officer coordination, and real-time case resolution all from a single, mission-critical interface.</p>
+            <p class="about-lead">Our platform connects civilians, dispatch officers, and field personnel in a shared operational picture reducing manual response and better accountability.</p>
+          </div>
+
+          <div class="about-metrics-grid">
+            <div class="card about-metric-card">
+              <div class="about-metric-label">Cases Resolved</div>
+              <div class="about-metric-value about-metric-red">4,218</div>
+              <div class="about-metric-sub">Active system total</div>
+            </div>
+            <div class="card about-metric-card">
+              <div class="about-metric-label">Duplicate Flags</div>
+              <div class="about-metric-value">0</div>
+              <div class="about-metric-sub">Redundant dispatches blocked</div>
+            </div>
+            <div class="card about-metric-card">
+              <div class="about-metric-label">Field Officers</div>
+              <div class="about-metric-value">38</div>
+              <div class="about-metric-sub">Active across 4 barangays</div>
+            </div>
+            <div class="card about-metric-card">
+              <div class="about-metric-label">Resolution Rate</div>
+              <div class="about-metric-value">91%</div>
+              <div class="about-metric-sub">Complaints resolved on time</div>
+            </div>
+          </div>
+
+          <div class="about-pillars-grid">
+            <div class="card about-pillar-card">
+              <div class="about-pillar-title">🚀 Our Mission</div>
+              <div class="about-pillar-text">To provide fast and transparent operations with tools that enable faster, more accountable actions and road safety results.</div>
+            </div>
+            <div class="card about-pillar-card">
+              <div class="about-pillar-title">💎 Our Values</div>
+              <div class="about-pillar-text">Public safety, data integrity, and accountability in every workflow and interaction.</div>
+            </div>
+            <div class="card about-pillar-card">
+              <div class="about-pillar-title">🎯 Our Vision</div>
+              <div class="about-pillar-text">A traffic enforcement ecosystem powered by smart operations where every road is safer.</div>
+            </div>
+          </div>
+
+          <div class="about-features-grid">
+            <div class="card about-feature-card">
+              <div class="about-feature-title">Integrated Dispatch</div>
+              <div class="about-feature-text">A single workflow for complaint intake, validation, assignment, and resolution eliminating siloed tools and radio-based coordination gaps.</div>
+            </div>
+            <div class="card about-feature-card">
+              <div class="about-feature-title">Duplicate Detection</div>
+              <div class="about-feature-text">Automated flagging of overlapping complaints reduces redundant dispatches and ensures every incident is handled once, correctly.</div>
+            </div>
+            <div class="card about-feature-card">
+              <div class="about-feature-title">Full Audit Trail</div>
+              <div class="about-feature-text">Every case action from submission to resolution is timestamped and logged, giving command staff complete visibility and accountability.</div>
+            </div>
+          </div>
+
           <div class="card">
-            <div class="card-head"><span class="card-title">Security — Change Password</span></div>
-            <div class="form-group"><label for="pw-current">Current Password</label><input id="pw-current" class="form-input" type="password" placeholder="Enter current password" /></div>
-            <div class="form-group"><label for="pw-new">New Password</label><input id="pw-new" class="form-input" type="password" placeholder="Min. 8 characters" /></div>
-            <div class="form-group"><label for="pw-confirm">Confirm New Password</label><input id="pw-confirm" class="form-input" type="password" placeholder="Repeat new password" /></div>
-            <div class="alert alert-warn">🔐 <div>Must be at least 8 characters, one uppercase letter, and one number.</div></div>
-            <button class="btn-primary" style="width:100%;margin-top:8px" onclick="updatePassword()">Update Password</button>
+            <div class="card-head"><span class="card-title">Development Team</span></div>
+            <div class="about-team-grid">
+              <div class="about-team-card"><div class="about-team-avatar">👤</div><div class="about-team-name">Maria Reyes</div><div class="about-team-role">Lead Developer</div></div>
+              <div class="about-team-card"><div class="about-team-avatar">👤</div><div class="about-team-name">Jose Cruz</div><div class="about-team-role">System Architect</div></div>
+              <div class="about-team-card"><div class="about-team-avatar">👤</div><div class="about-team-name">Anna Lim</div><div class="about-team-role">UI Designer</div></div>
+              <div class="about-team-card"><div class="about-team-avatar">👤</div><div class="about-team-name">Rico Dela Cruz</div><div class="about-team-role">Data Analyst</div></div>
+            </div>
+          </div>
+
+          <div class="about-contact-grid">
+            <div class="card about-contact-card">
+              <div class="card-head"><span class="card-title">Contact the Command Center</span></div>
+              <div class="about-contact-list">
+                <div class="about-contact-row"><strong>Address:</strong> Quezon City Hall, Metro Manila</div>
+                <div class="about-contact-row"><strong>Hotline:</strong> +63-2-8888-TRAP</div>
+                <div class="about-contact-row"><strong>Email:</strong> support@trapico.qc.ph</div>
+                <div class="about-contact-row"><strong>Office Hours:</strong> Monday - Friday, 8:00 AM - 5:00 PM</div>
+                <div class="about-contact-row"><strong>Availability:</strong> 24 / 7 via system hotline</div>
+              </div>
+            </div>
+
+            <div class="card about-feedback-card">
+              <div class="card-head"><span class="card-title">Send a Message</span></div>
+              <div class="about-feedback-form">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="about-first-name">First Name</label>
+                    <input id="about-first-name" class="form-input" type="text" placeholder="Juan" />
+                  </div>
+                  <div class="form-group">
+                    <label for="about-last-name">Last Name</label>
+                    <input id="about-last-name" class="form-input" type="text" placeholder="Dela Cruz" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="about-email">Email Address</label>
+                  <input id="about-email" class="form-input" type="email" placeholder="juan@email.com" />
+                </div>
+                <div class="form-group">
+                  <label for="about-message">Message</label>
+                  <textarea id="about-message" class="form-input" rows="4" placeholder="Describe your concern in detail..."></textarea>
+                </div>
+                <div class="btn-row" style="justify-content:flex-start">
+                  <button class="btn-primary" onclick="sendAboutFeedback()">Send Message</button>
+                </div>
+                <div class="about-feedback-note">Emails are routed to TTMD support: cartallaanny@gmail.com</div>
+              </div>
+            </div>
           </div>
 
         </div>
@@ -355,8 +550,8 @@
 <div id="modal-container"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="../data.js?v=20260508b"></script>
-<script src="../api.js?v=20260508b"></script>
-<script src="civilian.backend.js?v=20260508b"></script>
+<script src="../data.js?v=20260510c"></script>
+<script src="../api.js?v=20260510a"></script>
+<script src="civilian.backend.js?v=20260510c"></script>
 </body>
 </html>

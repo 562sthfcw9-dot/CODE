@@ -384,20 +384,73 @@ async function submitComplaint() {
 
 function renderProfilePage() {
     if (!CIVILIAN_USER) return;
-    document.getElementById('prof-name').textContent = CIVILIAN_USER.name || CIVILIAN_USER.username;
+
+    const displayName = CIVILIAN_USER.name || CIVILIAN_USER.username || 'User';
+    const parts = displayName.trim().split(/\s+/);
+    const avatarText = parts.length >= 2
+        ? (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+        : parts[0].charAt(0).toUpperCase();
+
+    renderProfileAvatar(avatarText, CIVILIAN_USER.profile_picture_url || '');
+
+    // Topbar / sidebar identity
+    const sbName = document.getElementById('sb-name');
+    const tbUsername = document.getElementById('topbar-username');
+    const tbAvatar = document.getElementById('topbar-avatar');
+    if (sbName) sbName.textContent = displayName;
+    if (tbUsername) tbUsername.textContent = displayName;
+    if (tbAvatar) tbAvatar.textContent = avatarText;
+
+    // Profile card header
+    document.getElementById('prof-display-name').textContent = displayName;
+
+    // Personal info view
+    document.getElementById('prof-name').textContent = CIVILIAN_USER.name || '—';
     document.getElementById('prof-username').textContent = CIVILIAN_USER.username || '—';
     document.getElementById('prof-email').textContent = CIVILIAN_USER.email || '—';
     document.getElementById('prof-phone').textContent = CIVILIAN_USER.phone || '—';
     document.getElementById('prof-brgy').textContent = CIVILIAN_USER.home_barangay || '—';
+
+    // Edit form pre-fill
     document.getElementById('edit-profile-name').value = CIVILIAN_USER.name || '';
     document.getElementById('edit-profile-username').value = CIVILIAN_USER.username || '';
     document.getElementById('edit-profile-email').value = CIVILIAN_USER.email || '';
     document.getElementById('edit-profile-phone').value = CIVILIAN_USER.phone || '';
-    document.getElementById('edit-profile-brgy').value = CIVILIAN_USER.home_barangay || '';
-    
-    // Set profile avatar letter
-    const letter = (CIVILIAN_USER.name || CIVILIAN_USER.username || 'U').charAt(0).toUpperCase();
-    document.getElementById('profile-avatar-letter').textContent = letter;
+
+    // Pre-select barangay in dropdown
+    const brgySelect = document.getElementById('edit-profile-brgy');
+    if (brgySelect && CIVILIAN_USER.home_barangay) {
+        const opt = Array.from(brgySelect.options).find(o => o.value === CIVILIAN_USER.home_barangay || o.text === CIVILIAN_USER.home_barangay);
+        if (opt) brgySelect.value = opt.value;
+    }
+
+    // Quick Stats (accurate from MY_COMPLAINTS)
+    renderProfileStats();
+}
+
+function renderProfileAvatar(avatarText, imageUrl) {
+    const avatarDisplay = document.getElementById('profile-avatar-display');
+    if (!avatarDisplay) return;
+
+    if (imageUrl) {
+        avatarDisplay.innerHTML = `<img src="${imageUrl}" alt="Profile picture" />`;
+    } else {
+        avatarDisplay.innerHTML = `<span id="profile-avatar-letter">${avatarText}</span>`;
+    }
+}
+
+function renderProfileStats() {
+    const my = MY_COMPLAINTS || [];
+    const total     = my.length;
+    const resolved  = my.filter(c => ['resolved', 'closed'].includes(c.status)).length;
+    const pending   = my.filter(c => !['resolved', 'closed', 'cancelled', 'rejected'].includes(c.status)).length;
+    const cancelled = my.filter(c => c.status === 'cancelled').length;
+
+    const el = id => document.getElementById(id);
+    if (el('stat-total'))     el('stat-total').textContent     = total;
+    if (el('stat-resolved'))  el('stat-resolved').textContent  = resolved;
+    if (el('stat-pending'))   el('stat-pending').textContent   = pending;
+    if (el('stat-cancelled')) el('stat-cancelled').textContent = cancelled;
 }
 
 let editingProfile = false;
@@ -407,6 +460,17 @@ function toggleProfileEdit() {
     document.getElementById('profile-view').classList.toggle('hidden', editingProfile);
     document.getElementById('profile-edit').classList.toggle('hidden', !editingProfile);
     document.getElementById('edit-btn').textContent = editingProfile ? '✕ Cancel' : '✎ Edit';
+}
+
+function togglePasswordVisibility(inputId, button) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    const isVisible = input.type === 'text';
+    input.type = isVisible ? 'password' : 'text';
+    button.classList.toggle('is-visible', !isVisible);
+    button.textContent = isVisible ? '👁' : '🙈';
+    button.setAttribute('title', isVisible ? 'Show password' : 'Hide password');
 }
 
 async function uploadProfilePicture(event) {
@@ -437,12 +501,7 @@ async function uploadProfilePicture(event) {
                 try {
                     const response = JSON.parse(xhr.responseText);
                     if (response.success) {
-                        statusEl.textContent = '✓ Picture uploaded successfully!';
-                        CIVILIAN_USER.profile_picture_url = response.url;
-                        // Display the uploaded image
-                        const avatarDisplay = document.getElementById('profile-avatar-display');
-                        avatarDisplay.innerHTML = `<img src="${response.url}" style="width:100%;height:100%;border-radius:50%;object-fit:cover" />`;
-                        setTimeout(() => { statusEl.textContent = ''; }, 3000);
+                        saveProfilePictureUrl(response.url, statusEl);
                     } else {
                         statusEl.textContent = '✗ ' + (response.message || 'Upload failed');
                     }
@@ -463,18 +522,39 @@ async function uploadProfilePicture(event) {
     } catch (error) {
         statusEl.textContent = '✗ ' + error.message;
     }
+
+    event.target.value = '';
+}
+
+async function saveProfilePictureUrl(url, statusEl) {
+    try {
+        await apiFetch('user.php', {action: 'updateProfilePicture', profilePictureUrl: url}, 'POST');
+        CIVILIAN_USER.profile_picture_url = url;
+        const displayName = CIVILIAN_USER.name || CIVILIAN_USER.username || 'User';
+        const parts = displayName.trim().split(/\s+/);
+        const avatarText = parts.length >= 2
+            ? (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+            : parts[0].charAt(0).toUpperCase();
+        renderProfileAvatar(avatarText, url);
+        statusEl.textContent = '✓ Picture uploaded successfully!';
+        setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    } catch (error) {
+        statusEl.textContent = '✗ ' + error.message;
+    }
 }
 
 async function saveProfile() {
-    const name = document.getElementById('edit-profile-name')?.value.trim() || '';
+    const name  = document.getElementById('edit-profile-name')?.value.trim() || '';
     const email = document.getElementById('edit-profile-email')?.value.trim() || '';
     const phone = document.getElementById('edit-profile-phone')?.value.trim() || '';
-    const brgy = document.getElementById('edit-profile-brgy')?.value.trim() || '';
+    const brgy  = document.getElementById('edit-profile-brgy')?.value || '';
 
-    if (!name || !email || !phone || !brgy) {
-        showToast('Please complete all profile fields.');
-        return;
-    }
+    if (!name) { showToast('Full name is required.'); return; }
+    if (!email) { showToast('Email is required.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Please enter a valid email address.'); return; }
+    if (!phone) { showToast('Phone number is required.'); return; }
+    if (!/^\+?[\d\s\-]{7,15}$/.test(phone)) { showToast('Please enter a valid phone number.'); return; }
+    if (!brgy) { showToast('Please select a barangay.'); return; }
 
     try {
         await apiFetch('user.php', {action: 'updateProfile', name, email, phone, brgy}, 'POST');
@@ -520,6 +600,45 @@ async function updatePassword() {
         showToast('Password updated successfully.');
     } catch (error) {
         showToast(error.message);
+    }
+}
+
+async function sendAboutFeedback() {
+    const firstName = (document.getElementById('about-first-name')?.value || '').trim();
+    const lastName = (document.getElementById('about-last-name')?.value || '').trim();
+    const email = (document.getElementById('about-email')?.value || '').trim();
+    const message = (document.getElementById('about-message')?.value || '').trim();
+
+    if (!firstName || !lastName || !email || !message) {
+        showToast('Please complete all feedback fields.');
+        return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showToast('Please enter a valid email address.');
+        return;
+    }
+
+    try {
+        const resp = await apiFetch('feedback.php', {
+            firstName,
+            lastName,
+            email,
+            message,
+        }, 'POST');
+
+        const firstEl = document.getElementById('about-first-name');
+        const lastEl = document.getElementById('about-last-name');
+        const emailEl = document.getElementById('about-email');
+        const msgEl = document.getElementById('about-message');
+        if (firstEl) firstEl.value = '';
+        if (lastEl) lastEl.value = '';
+        if (emailEl) emailEl.value = '';
+        if (msgEl) msgEl.value = '';
+
+        showToast(resp?.message || 'Feedback sent successfully.');
+    } catch (error) {
+        showToast(error.message || 'Unable to send feedback right now.');
     }
 }
 

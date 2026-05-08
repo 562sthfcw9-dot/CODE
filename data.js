@@ -220,6 +220,7 @@ function setActivePage(pageId) {
     profile:'My Profile', queue:'Complaint Queue', active:'Active Cases',
     officers:'Field Officers', analytics:'Analytics', assigned:'Assigned Cases',
     job:'Active Job', drafts:'Drafts', history:'Case History', performance:'My Performance',
+    about:'About Us',
   };
   const titleEl = document.getElementById('topbar-title');
   if (titleEl) titleEl.textContent = titleMap[pageId] || 'Dashboard';

@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="base.css?v=20260507" />
-  <link rel="stylesheet" href="login.css?v=20260507" />
+  <link rel="stylesheet" href="base.css?v=20260507n" />
+  <link rel="stylesheet" href="login.css?v=20260507n" />
 </head>
 <body data-role="field">
 
@@ -34,13 +34,17 @@
 
   <section class="login-right">
     <div class="login-panel">
-      <div class="login-kicker">FIELD OFFICER ACCESS</div>
       <h2 class="login-form-title">SIGN IN</h2>
 
       <div class="login-form">
+        <div id="forgot-inline-notif" class="forgot-inline-notif hidden" aria-live="polite">
+          <span>Password reset instructions will be sent to your registered account email.</span>
+          <button type="button" class="forgot-inline-close" onclick="dismissForgotNotif()" aria-label="Dismiss notification">✕</button>
+        </div>
+
         <div class="form-group login-field-group">
-          <label class="login-label" for="login-user">EMAIL OR BADGE NO.</label>
-          <input id="login-user" class="login-input" type="text" placeholder="e.g. cien@trapico.gov" autocomplete="username" />
+          <label class="login-label" for="login-user">EMAIL OR USERNAME</label>
+          <input id="login-user" class="login-input" type="text" placeholder="e.g. fae@trapico.gov" autocomplete="username" />
         </div>
 
         <div class="form-group login-field-group">
@@ -58,10 +62,8 @@
         <div id="login-error" class="login-error hidden">Employee ID and password are required.</div>
 
         <button class="login-submit" id="login-btn" onclick="doLogin()">ACCESS SYSTEM →</button>
-        <a href="field-signup.html" class="login-submit auth-switch-btn">GO TO SIGN UP →</a>
 
         <div class="login-footer-copy">Don't have an account? <a href="field-signup.html" class="signup-link">Sign up</a></div>
-        <div class="login-footer-copy" style="margin-top:6px;font-size:0.78rem;"><a href="citizen-login.html" class="signup-link">← Back to Citizen Login</a></div>
       </div>
     </div>
   </section>
@@ -77,8 +79,38 @@
   </div>
 </div>
 
-<script src="data.js"></script>
-<script src="api.js"></script>
-<script src="login.js"></script>
+<script src="data.js?v=20260507n"></script>
+<script src="api.js?v=20260507n"></script>
+<script src="login.js?v=20260507n"></script>
+<script>
+  (function removeFieldHealthCheck() {
+    function cleanup() {
+      var wrap = document.getElementById('api-health-check-wrap');
+      if (wrap) wrap.remove();
+
+      var buttons = document.querySelectorAll('button');
+      buttons.forEach(function (btn) {
+        if ((btn.textContent || '').trim() === 'API HEALTH CHECK') {
+          var parent = btn.parentElement;
+          if (parent && (parent.style.position === 'fixed' || parent.style.zIndex === '9999')) {
+            parent.remove();
+          } else {
+            btn.remove();
+          }
+        }
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', cleanup);
+    } else {
+      cleanup();
+    }
+
+    setTimeout(cleanup, 50);
+    setTimeout(cleanup, 250);
+    setTimeout(cleanup, 800);
+  })();
+</script>
 </body>
 </html>

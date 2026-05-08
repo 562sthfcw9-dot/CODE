@@ -11,15 +11,16 @@ $currentUid  = (int)($user['user_id'] ?? $currentId);  // always Users.user_id
 
 if ($action === 'profile') {
     $profile = [
-        'role'  => $currentRole,
-        'id'    => $currentId,
-        'name'  => $user['name'] ?? '',
-        'email' => $user['email'] ?? '',
+        'role'                => $currentRole,
+        'id'                  => $currentId,
+        'name'                => $user['name'] ?? '',
+        'email'               => $user['email'] ?? '',
+        'profile_picture_url' => $user['profile_picture_url'] ?? '',
     ];
 
     if ($currentRole === 'regular') {
         $stmt = $db->prepare(
-            'SELECT username, full_name AS name, email, phone_number, barangay AS home_barangay
+            'SELECT username, full_name AS name, email, phone_number, barangay AS home_barangay, profile_picture_url
              FROM Users WHERE user_id = :uid'
         );
         $stmt->execute([':uid' => $currentUid]);
@@ -30,11 +31,12 @@ if ($action === 'profile') {
             $profile['email']         = $row['email'];
             $profile['phone']         = $row['phone_number'];
             $profile['home_barangay'] = $row['home_barangay'];
+            $profile['profile_picture_url'] = $row['profile_picture_url'];
         }
 
     } elseif ($currentRole === 'dispatch') {
         $stmt = $db->prepare(
-            'SELECT u.username, u.full_name AS name, u.email
+            'SELECT u.username, u.full_name AS name, u.email, u.profile_picture_url
              FROM Users u
              JOIN Dispatch_officers d ON d.user_id = u.user_id
              WHERE d.dispatch_id = :id'
@@ -45,11 +47,13 @@ if ($action === 'profile') {
             $profile['username'] = $row['username'];
             $profile['name']     = $row['name'];
             $profile['email']    = $row['email'];
+            $profile['profile_picture_url'] = $row['profile_picture_url'];
         }
 
     } elseif ($currentRole === 'field') {
         $stmt = $db->prepare(
             'SELECT u.username, u.full_name AS name, u.email, u.phone_number AS phone,
+                u.profile_picture_url,
                     f.assigned_barangay AS home_barangay
              FROM Users u
              JOIN Field_officers f ON f.user_id = u.user_id
@@ -63,10 +67,28 @@ if ($action === 'profile') {
             $profile['email']         = $row['email'];
             $profile['phone']         = $row['phone'];
             $profile['home_barangay'] = $row['home_barangay'];
+            $profile['profile_picture_url'] = $row['profile_picture_url'];
         }
     }
 
     successResponse(['user' => $profile]);
+}
+
+if ($action === 'updateProfilePicture') {
+    $profilePictureUrl = trim((string)($data['profilePictureUrl'] ?? ''));
+    if ($profilePictureUrl === '') {
+        errorResponse('Profile picture URL is required.');
+    }
+
+    $stmt = $db->prepare('UPDATE Users SET profile_picture_url = :url WHERE user_id = :uid');
+    $stmt->execute([':url' => $profilePictureUrl, ':uid' => $currentUid]);
+
+    $_SESSION['trapico_user']['profile_picture_url'] = $profilePictureUrl;
+    if (isset($_SESSION['trapico_user_by_role'][$currentRole])) {
+        $_SESSION['trapico_user_by_role'][$currentRole]['profile_picture_url'] = $profilePictureUrl;
+    }
+
+    successResponse(['message' => 'Profile picture updated successfully.', 'profile_picture_url' => $profilePictureUrl]);
 }
 
 if ($action === 'updateProfile') {
@@ -109,6 +131,10 @@ if ($action === 'updateProfile') {
 
     $_SESSION['trapico_user']['name']  = $name;
     $_SESSION['trapico_user']['email'] = $email;
+    if (isset($_SESSION['trapico_user_by_role'][$currentRole])) {
+        $_SESSION['trapico_user_by_role'][$currentRole]['name']  = $name;
+        $_SESSION['trapico_user_by_role'][$currentRole]['email'] = $email;
+    }
     successResponse(['message' => 'Profile updated successfully.', 'user' => $_SESSION['trapico_user']]);
 }
 

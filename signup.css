@@ -159,6 +159,10 @@ body[data-role="dispatch"] .su-select-native {
   appearance: auto;
   color: #111111;
 }
+body[data-role="field"] .su-select-native {
+  appearance: auto;
+  color: #111111;
+}
 
 body[data-role="regular"] .su-select-native {
   appearance: auto;
@@ -168,8 +172,14 @@ body[data-role="regular"] .su-select-native {
 body[data-role="dispatch"] .su-select-native:invalid {
   color: #7c7c7c;
 }
+body[data-role="field"] .su-select-native:invalid {
+  color: #7c7c7c;
+}
 
 body[data-role="dispatch"] #dis-department[readonly] {
+  color: #5f6368;
+}
+body[data-role="field"] #dis-department[readonly] {
   color: #5f6368;
 }
 
