@@ -43,8 +43,8 @@
         </div>
 
         <div class="form-group login-field-group">
-          <label class="login-label" for="login-user">EMAIL OR USERNAME</label>
-          <input id="login-user" class="login-input" type="text" placeholder="e.g. fae@trapico.gov" autocomplete="username" />
+          <label class="login-label" for="login-user">EMAIL OR BADGE NUMBER</label>
+          <input id="login-user" class="login-input" type="text" placeholder="e.g. juan@email.com or DISP-2026-0001" autocomplete="username" />
         </div>
 
         <div class="form-group login-field-group">
@@ -59,7 +59,7 @@
           <a href="#" class="forgot-link" onclick="openForgotModal(event)">FORGOT PASSWORD?</a>
         </div>
 
-        <div id="login-error" class="login-error hidden">Employee ID and password are required.</div>
+        <div id="login-error" class="login-error hidden">Email address or badge number and password are required.</div>
 
         <button class="login-submit" id="login-btn" onclick="doLogin()">ACCESS SYSTEM →</button>
 
@@ -72,16 +72,22 @@
 
 <div id="forgot-modal-overlay" class="login-modal-overlay hidden" onclick="closeForgotModal(event)" role="dialog" aria-modal="true" aria-labelledby="forgot-title">
   <div class="login-modal-card">
-    <h3 id="forgot-title" class="login-modal-title">PASSWORD RESET REQUESTED</h3>
+    <h3 id="forgot-title" class="login-modal-title">FORGOT PASSWORD</h3>
     <hr class="login-modal-divider" />
-    <p class="login-modal-body">A password reset link has been sent to your registered email address. Please check your inbox (and spam folder) for further instructions.</p>
-    <button type="button" class="login-modal-close" onclick="closeForgotModal()">CLOSE</button>
+    <p class="login-modal-body">Enter your email address or badge number. We will send a working reset link to your registered email.</p>
+    <div class="form-group login-field-group" style="margin-bottom:12px;">
+      <label class="login-label" for="forgot-identifier">EMAIL OR BADGE NUMBER</label>
+      <input id="forgot-identifier" class="login-input" type="text" placeholder="e.g. juan@email.com or DISP-2026-0001" />
+    </div>
+    <div id="forgot-status" class="login-error hidden" style="margin-bottom:10px;"></div>
+    <button type="button" class="login-modal-close" onclick="submitForgotPassword()">SEND RESET LINK</button>
+    <button type="button" class="login-modal-close" style="margin-top:8px;background:#7d838c" onclick="closeForgotModal()">CLOSE</button>
   </div>
 </div>
 
-<script src="data.js?v=20260507n"></script>
-<script src="api.js?v=20260507n"></script>
-<script src="login.js?v=20260507n"></script>
+<script src="data.js?v=20260510d"></script>
+<script src="api.js?v=20260510d"></script>
+<script src="login.js?v=20260510l"></script>
 <script>
   (function removeDispatchHealthCheck() {
     function cleanup() {

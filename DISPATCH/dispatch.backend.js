@@ -328,11 +328,24 @@ function renderQueueTable() {
 
   const submitted = deduped.filter(c => c.status === 'submitted');
   const verified = deduped.filter(c => c.status === 'verified');
+  const resolved = deduped.filter(c => c.status === 'resolved');
+  const closed = deduped.filter(c => c.status === 'closed');
 
     document.getElementById('tab-submitted-count').textContent = `(${submitted.length})`;
     document.getElementById('tab-verified-count').textContent = `(${verified.length})`;
+    const resolvedCountEl = document.getElementById('tab-resolved-count');
+    if (resolvedCountEl) resolvedCountEl.textContent = `(${resolved.length})`;
+    const closedCountEl = document.getElementById('tab-closed-count');
+    if (closedCountEl) closedCountEl.textContent = `(${closed.length})`;
 
-    let list = dispatchActiveQueueTab === 'submitted' ? submitted : verified;
+    let list = submitted;
+    if (dispatchActiveQueueTab === 'verified') {
+      list = verified;
+    } else if (dispatchActiveQueueTab === 'resolved') {
+      list = resolved;
+    } else if (dispatchActiveQueueTab === 'closed') {
+      list = closed;
+    }
     list = list.filter(c => {
       const id = String(c.id || '').toLowerCase();
       const cat = String(c.cat || '').toLowerCase();
@@ -362,11 +375,59 @@ function renderQueueTable() {
         <td>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn-secondary btn-sm" onclick="openReviewModal('${safeText(c.id)}')">Review</button>
-            <button class="btn-success btn-sm" onclick="openVerifyModal('${safeText(c.id)}')">✓ Verify</button>
-            <button class="btn-danger btn-sm" onclick="openRejectModal('${safeText(c.id)}')">✗ Reject</button>
+            ${c.status === 'resolved'
+              ? `<button class="btn-success btn-sm" onclick="openCloseCaseModal('${safeText(c.id)}')">✓ Close Case</button>`
+              : (c.status === 'closed'
+                ? `<span class="badge badge-closed">Closed</span>`
+                : `<button class="btn-success btn-sm" onclick="openVerifyModal('${safeText(c.id)}')">✓ Verify</button><button class="btn-danger btn-sm" onclick="openRejectModal('${safeText(c.id)}')">✗ Reject</button>`)}
           </div>
         </td>
       </tr>`).join('');
+}
+
+function openCloseCaseModal(id) {
+    const c = QUEUE_DATA.find(x => x.id === id);
+    if (!c) return;
+
+    openModal(`
+      <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal" style="max-width:560px">
+          <div class="modal-head">
+            <div>
+              <div class="modal-title">Close Case</div>
+              <div class="modal-subtitle">${safeText(c.id)}</div>
+            </div>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+          </div>
+          <div class="modal-body">
+            ${alertBox('warn', '⚠️', 'This will finalize the resolved complaint and move it to closed status.')}
+            <div class="form-group" style="margin-top:12px">
+              <label>Final Dispatch Notes (optional)</label>
+              <textarea class="form-input" id="close-case-feedback" rows="3" placeholder="Validation notes before closing..."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn-success" onclick="submitCloseCase('${safeText(c.id)}')">✓ Confirm Close</button>
+          </div>
+        </div>
+      </div>`);
+}
+
+async function submitCloseCase(id) {
+    const feedback = document.getElementById('close-case-feedback')?.value.trim() || '';
+    closeModal();
+    try {
+        await apiFetch('dispatch.php', {action: 'closeCase', id, feedback}, 'POST');
+        showToast('Case closed successfully.');
+        showNotification(`Case ${id} closed`, 'Resolved complaint finalized by dispatch');
+        await loadDispatchData();
+        renderDashboard();
+        renderQueueTable();
+        renderActiveCases();
+    } catch (error) {
+        showToast(error.message);
+    }
 }
 
 function renderActiveCases() {
@@ -576,9 +637,223 @@ async function updateComplaintPriority(id, priority) {
 }
 
 function openReviewModal(id) {
-    const c = QUEUE_DATA.find(x => x.id === id);
-    if (!c) return;
-    dispatchSelectedOfficerId = null;
+  openReviewModalAsync(id);
+}
+
+let dispatchReviewMap = null;
+
+function normalizeEvidenceUrl(url) {
+  const raw = String(url || '').trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw) || raw.startsWith('data:')) return raw;
+
+  const normalized = raw.replace(/^\.\//, '');
+  if (normalized.startsWith('/')) {
+    return `${window.location.origin}${normalized}`;
+  }
+  if (normalized.startsWith('uploads/')) {
+    return new URL(`../${normalized}`, window.location.href).href;
+  }
+  if (normalized.startsWith('complaints/')) {
+    return new URL(`../uploads/${normalized}`, window.location.href).href;
+  }
+  if (/^[^\/]+\.(jpg|jpeg|png|gif|webp|mp4|mov|m4v|webm|3gp|3gpp)$/i.test(normalized)) {
+    return new URL(`../uploads/${normalized}`, window.location.href).href;
+  }
+
+  try {
+    return new URL(normalized, window.location.href).href;
+  } catch (_) {
+    return normalized;
+  }
+}
+
+function openEvidenceViewerFromElement(el) {
+  const encodedUrl = String(el?.dataset?.eurl || '');
+  const mediaUrl = decodeURIComponent(encodedUrl || '');
+  const mediaType = String(el?.dataset?.etype || 'photo');
+  const mediaTitle = String(el?.dataset?.etitle || 'Evidence');
+  openEvidenceViewer(mediaUrl, mediaType, mediaTitle);
+}
+
+function closeEvidenceViewer() {
+  const existing = document.getElementById('evidence-viewer-overlay');
+  if (existing) existing.remove();
+}
+
+function openEvidenceViewer(url, mediaType, title) {
+  const mediaUrl = String(url || '').trim();
+  if (!mediaUrl) {
+    showToast('Evidence file URL is missing.');
+    return;
+  }
+
+  closeEvidenceViewer();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'evidence-viewer-overlay';
+  overlay.style.position = 'fixed';
+  overlay.style.inset = '0';
+  overlay.style.background = 'rgba(0,0,0,0.92)';
+  overlay.style.zIndex = '12000';
+  overlay.style.display = 'flex';
+  overlay.style.flexDirection = 'column';
+
+  const safeTitle = safeText(title || 'Evidence');
+  const mediaNode = mediaType === 'video'
+    ? `<video id="evidence-viewer-media" src="${safeText(mediaUrl)}" controls autoplay playsinline style="max-width:96vw;max-height:82vh;background:#000"></video>`
+    : `<img id="evidence-viewer-media" src="${safeText(mediaUrl)}" alt="${safeTitle}" style="max-width:96vw;max-height:82vh;object-fit:contain;display:block" />`;
+
+  overlay.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.14)">
+      <div style="color:#fff;font-family:var(--font-head);font-size:18px;font-weight:700">${safeTitle}</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-secondary btn-sm" type="button" onclick="requestEvidenceFullscreen()">Fullscreen</button>
+        <a class="btn-secondary btn-sm" href="${safeText(mediaUrl)}" target="_blank" rel="noopener">Open New Tab</a>
+        <button class="btn-danger btn-sm" type="button" onclick="closeEvidenceViewer()">Close</button>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:12px">${mediaNode}</div>
+  `;
+
+  overlay.addEventListener('click', (event) => {
+    if (event.target === overlay) closeEvidenceViewer();
+  });
+
+  document.body.appendChild(overlay);
+}
+
+function requestEvidenceFullscreen() {
+  const media = document.getElementById('evidence-viewer-media');
+  if (!media || typeof media.requestFullscreen !== 'function') {
+    return;
+  }
+  media.requestFullscreen().catch(() => {});
+}
+
+function evidenceType(mediaRow) {
+  const declared = String(mediaRow?.file_type || '').toLowerCase();
+  if (declared === 'video') return 'video';
+  const url = String(mediaRow?.file_url || '').toLowerCase();
+  if (/\.(mp4|mov|m4v|webm|3gp|3gpp)(\?.*)?$/.test(url)) return 'video';
+  return 'photo';
+}
+
+function renderEvidenceSection(mediaList) {
+  const rows = Array.isArray(mediaList) ? mediaList : [];
+  if (!rows.length) {
+    return uploadBox(80, 'No uploaded evidence found', 'Citizen did not attach media for this complaint.');
+  }
+
+  const cards = rows.map((row, idx) => {
+    const url = normalizeEvidenceUrl(row.file_url);
+    if (!url) return '';
+
+    const isVideo = evidenceType(row) === 'video';
+    const stage = String(row?.evidence_stage || '').toLowerCase();
+    const stageLabel = stage === 'before_proof'
+      ? 'Field Before Photo'
+      : (stage === 'after_proof' ? 'Field After Photo' : null);
+    const title = stageLabel || (isVideo ? `Evidence Video ${idx + 1}` : `Evidence Photo ${idx + 1}`);
+    const encodedUrl = encodeURIComponent(url);
+    const mediaNode = isVideo
+      ? `<video src="${safeText(url)}" preload="metadata" muted style="width:100%;height:100%;object-fit:cover;background:#000"></video>`
+      : `<img src="${safeText(url)}" alt="${safeText(title)}" style="width:100%;height:100%;object-fit:cover;display:block" />`;
+
+    return `
+      <button type="button"
+        data-eurl="${safeText(encodedUrl)}"
+        data-etype="${isVideo ? 'video' : 'photo'}"
+        data-etitle="${safeText(title)}"
+        onclick="openEvidenceViewerFromElement(this)"
+        title="Open ${safeText(title)}"
+        style="display:block;width:100%;padding:0;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#f8f8f8;height:128px;cursor:pointer;position:relative">
+        ${mediaNode}
+        ${stageLabel ? `<span style="position:absolute;left:8px;top:8px;background:rgba(17,17,17,0.72);color:#fff;font-size:11px;padding:4px 6px;border-radius:6px">${safeText(stageLabel)}</span>` : ''}
+        <span style="position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,0.65);color:#fff;font-size:11px;padding:4px 6px;border-radius:6px">View Fullscreen</span>
+      </button>`;
+  }).filter(Boolean).join('');
+
+  if (!cards) {
+    return uploadBox(80, 'No uploaded evidence found', 'Citizen did not attach media for this complaint.');
+  }
+
+  return `
+    <div style="margin-top:12px">
+    <div class="section-title">Uploaded Evidence</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">${cards}</div>
+    </div>`;
+}
+
+function buildReviewMapPanel(mapId) {
+  return `
+    <div style="margin-top:12px">
+    <div class="section-title">Live Map</div>
+    <div id="${safeText(mapId)}" style="height:180px;border:1px solid var(--border);border-radius:8px;overflow:hidden"></div>
+    </div>`;
+}
+
+function mountReviewMap(mapId, lat, lng) {
+  const mapEl = document.getElementById(mapId);
+  if (!mapEl) return;
+
+  const pointLat = Number.parseFloat(lat);
+  const pointLng = Number.parseFloat(lng);
+  if (!Number.isFinite(pointLat) || !Number.isFinite(pointLng)) {
+    mapEl.innerHTML = mapPlaceholder(180, 'Location unavailable');
+    return;
+  }
+  if (!window.L) {
+    mapEl.innerHTML = `<div class="map-placeholder" style="height:180px"><div class="map-icon">📍</div><div class="map-label">${safeText(pointLat.toFixed(5))}, ${safeText(pointLng.toFixed(5))}</div><div class="map-sub">Leaflet failed to load.</div></div>`;
+    return;
+  }
+
+  if (dispatchReviewMap) {
+    dispatchReviewMap.remove();
+    dispatchReviewMap = null;
+  }
+
+  dispatchReviewMap = L.map(mapId, { zoomControl: true, scrollWheelZoom: false }).setView([pointLat, pointLng], 16);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(dispatchReviewMap);
+
+  L.marker([pointLat, pointLng]).addTo(dispatchReviewMap)
+    .bindPopup(`Complaint location<br>${safeText(pointLat.toFixed(5))}, ${safeText(pointLng.toFixed(5))}`)
+    .openPopup();
+
+  setTimeout(() => {
+    if (dispatchReviewMap) dispatchReviewMap.invalidateSize();
+  }, 0);
+  setTimeout(() => {
+    if (dispatchReviewMap) dispatchReviewMap.invalidateSize();
+  }, 180);
+}
+
+async function openReviewModalAsync(id) {
+  const c = QUEUE_DATA.find(x => x.id === id);
+  if (!c) return;
+  dispatchSelectedOfficerId = null;
+
+  let detailComplaint = c;
+  let detailMedia = [];
+  try {
+    const detailResp = await apiFetch('dispatch.php', {action: 'complaintDetail', id});
+    if (detailResp?.complaint && typeof detailResp.complaint === 'object') {
+      detailComplaint = {...c, ...detailResp.complaint};
+    }
+    if (Array.isArray(detailResp?.media)) {
+      detailMedia = detailResp.media;
+    }
+  } catch (error) {
+    detailComplaint = c;
+    detailMedia = [];
+    showToast(`Evidence load failed: ${error?.message || 'Unknown error'}`);
+  }
+
+  const mapId = `review-map-${String(detailComplaint.id || id).replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const evidenceHtml = renderEvidenceSection(detailMedia);
 
     const officerCards = FIELD_OFFICERS_DATA.map(o => {
         const blocked = parseInt(o.is_assigned) === 1;
@@ -591,32 +866,32 @@ function openReviewModal(id) {
       </div>`;
     }).join('');
 
-    const canAction = ['submitted', 'verified'].includes(c.status);
+    const canAction = ['submitted', 'verified'].includes(detailComplaint.status);
     openModal(`
       <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
         <div class="modal modal-lg">
           <div class="modal-head">
             <div>
               <div class="modal-title">Complaint Review</div>
-              <div class="modal-subtitle">${safeText(c.id)}</div>
+              <div class="modal-subtitle">${safeText(detailComplaint.id)}</div>
             </div>
             <button class="modal-close" onclick="closeModal()">✕</button>
           </div>
           <div class="modal-body">
             <div class="badge-row">
-              ${statusBadge(c.status)} <span id="review-priority-badge-${safeText(c.id)}">${priorityBadge(c.priority)}</span>
-              ${c.duplicate ? '<span class="dup-flag">⚠ Potential Duplicate within 100m / 24hr window</span>' : ''}
+              ${statusBadge(detailComplaint.status)} <span id="review-priority-badge-${safeText(detailComplaint.id)}">${priorityBadge(detailComplaint.priority)}</span>
+              ${detailComplaint.duplicate ? '<span class="dup-flag">⚠ Potential Duplicate within 100m / 24hr window</span>' : ''}
             </div>
             <div class="detail-grid">
-              <div class="detail-item"><label>Category</label><span>${safeText(c.cat)}</span></div>
-              <div class="detail-item"><label>Barangay</label><span>${safeText(c.brgy)}</span></div>
-              <div class="detail-item"><label>Reporter</label><span>${c.anon ? 'Anonymous' : safeText(c.user || 'Citizen')}</span></div>
-              <div class="detail-item"><label>Date / Time</label><span>${formatDateTime(c.date)}</span></div>
-              <div class="detail-item"><label>Priority Level</label><span><select class="form-select" id="review-priority-select-${safeText(c.id)}" onchange="updateComplaintPriority('${safeText(c.id)}', this.value)">${priorityOptionsMarkup(c.priority)}</select></span></div>
+              <div class="detail-item"><label>Category</label><span>${safeText(detailComplaint.cat)}</span></div>
+              <div class="detail-item"><label>Barangay</label><span>${safeText(detailComplaint.brgy)}</span></div>
+              <div class="detail-item"><label>Reporter</label><span>${detailComplaint.anon ? 'Anonymous' : safeText(detailComplaint.user || 'Citizen')}</span></div>
+              <div class="detail-item"><label>Date / Time</label><span>${formatDateTime(detailComplaint.date)}</span></div>
+              <div class="detail-item"><label>Priority Level</label><span><select class="form-select" id="review-priority-select-${safeText(detailComplaint.id)}" onchange="updateComplaintPriority('${safeText(detailComplaint.id)}', this.value)">${priorityOptionsMarkup(detailComplaint.priority)}</select></span></div>
             </div>
-            <div class="complaint-desc">${safeText(c.desc)}</div>
-            ${mapPlaceholder(160, '', c.lat, c.lng)}
-            ${uploadBox(80, '📷 View uploaded evidence')}
+            <div class="complaint-desc">${safeText(detailComplaint.desc || detailComplaint.description || '')}</div>
+            ${buildReviewMapPanel(mapId)}
+            ${evidenceHtml}
             ${canAction ? `
               <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
                 <div class="section-title">Assign Field Officer</div>
@@ -637,6 +912,8 @@ function openReviewModal(id) {
           </div>
         </div>
       </div>`);
+
+    mountReviewMap(mapId, detailComplaint.lat, detailComplaint.lng);
 }
 
 function selectOfficer(id) {

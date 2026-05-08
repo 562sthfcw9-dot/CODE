@@ -147,7 +147,9 @@ async function initField() {
     if (!user) return;
     FIELD_USER = user;
 
-    const displayName = user.name || user.username || 'Field Officer';
+    await loadFieldProfile();
+
+    const displayName = FIELD_USER.name || FIELD_USER.username || 'Field Officer';
     const initials = String(displayName)
         .split(' ')
         .filter(Boolean)
@@ -171,8 +173,306 @@ async function initField() {
     renderActiveJob();
     renderHistory();
     renderPerformance();
+        renderProfile();
     startPerformanceRefresh();
     startDispatchChatAlertPolling();
+}
+
+async function loadFieldProfile() {
+    try {
+        const resp = await apiFetch('user.php', {action: 'profile'});
+        if (resp && resp.user) {
+            FIELD_USER = {...FIELD_USER, ...resp.user};
+        }
+    } catch (error) {
+        console.warn('Unable to load field profile:', error.message);
+    }
+}
+
+function applyFieldAvatar(element, initial, imageUrl, fallbackClassName = '') {
+    if (!element) return;
+    if (imageUrl) {
+        element.innerHTML = `<img src="${safeText(imageUrl)}" alt="Profile picture" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" />`;
+        return;
+    }
+
+    element.textContent = initial;
+    if (fallbackClassName) {
+        element.className = fallbackClassName;
+    }
+}
+
+function getFieldBadgeId() {
+        const assignmentBadge = ASSIGNMENTS.find(item => item.officer_badge)?.officer_badge;
+        if (assignmentBadge) return assignmentBadge;
+        return 'FO-' + String(FIELD_USER?.id || '001').padStart(4, '0');
+}
+
+function renderProfile() {
+        const user = FIELD_USER;
+        if (!user) return;
+
+        const initial = (user.name || 'F').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+        const topbarName = document.getElementById('field-top-name');
+        if (topbarName) topbarName.textContent = user.name || 'Field Officer';
+        const profilePictureUrl = String(user.profile_picture_url || '').trim();
+
+        const profAvatar = document.getElementById('prof-avatar');
+        if (profAvatar) {
+            applyFieldAvatar(profAvatar, initial, profilePictureUrl);
+        }
+
+        const totalResolved = Number(PERFORMANCE_DATA.resolved || 0);
+        const onTimeRate = Number(PERFORMANCE_DATA.on_time_rate || 0);
+        const satisfaction = Number(PERFORMANCE_DATA.satisfaction || 0);
+        const closureRate = Number(PERFORMANCE_DATA.closure_rate || 0);
+        const avgResponseMinutes = Number(PERFORMANCE_DATA.avg_response_mins || 0);
+        const currentCaseLoad = ASSIGNMENTS.length;
+        const completedCount = HISTORY_ITEMS.length;
+        const avgTimeLabel = avgResponseMinutes > 0 ? `${avgResponseMinutes} mins` : '—';
+        const efficiencyScore = computeEfficiencyScore();
+
+        document.getElementById('prof-name').textContent = user.name || '—';
+        document.getElementById('prof-position').textContent = 'Field Officer';
+        document.getElementById('prof-email').textContent = user.email || '—';
+        document.getElementById('prof-phone').textContent = user.phone || '—';
+        document.getElementById('prof-badgeid').textContent = getFieldBadgeId();
+        document.getElementById('prof-brgy').textContent = user.home_barangay || '—';
+        document.getElementById('prof-cases').textContent = completedCount;
+        document.getElementById('prof-closed').textContent = totalResolved;
+        document.getElementById('prof-avgtime').textContent = avgTimeLabel;
+        document.getElementById('prof-caseload').textContent = currentCaseLoad;
+        document.getElementById('prof-officers-count').textContent = `${onTimeRate}%`;
+        document.getElementById('prof-active-brgy').textContent = `${satisfaction.toFixed(1)}/5`;
+        document.getElementById('prof-resolution-rate').textContent = `${closureRate}%`;
+        document.getElementById('prof-on-time').textContent = `${onTimeRate}%`;
+        document.getElementById('prof-avg-rating').textContent = `${satisfaction.toFixed(1)}★`;
+        document.getElementById('prof-efficiency').textContent = `${efficiencyScore}/100`;
+
+        const sbName = document.querySelector('.srb-name');
+        if (sbName) sbName.textContent = user.name || 'Field Officer';
+        const topAvatarEl = document.getElementById('field-top-avatar');
+        if (topAvatarEl) applyFieldAvatar(topAvatarEl, initial, profilePictureUrl, 'user-avatar');
+}
+
+function editProfile() {
+        const previewUrl = String(FIELD_USER.profile_picture_url || '').trim() || 'https://i.pravatar.cc/120?img=68';
+        openModal(`
+            <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+                <div class="modal" style="max-width:520px">
+                    <div class="modal-head">
+                        <div>
+                            <div class="modal-title">Edit Profile</div>
+                            <div class="modal-subtitle">Update field officer details</div>
+                        </div>
+                        <button class="modal-close" onclick="closeModal()">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="text-align:center; margin-bottom:16px">
+                            <img id="edit-profile-photo-preview" src="${safeText(previewUrl)}" style="width:84px;height:84px;border-radius:50%;object-fit:cover;border:2px solid var(--border)" alt="Profile Photo" />
+                            <div style="margin-top:10px">
+                                <input id="edit-profile-photo" type="file" accept="image/*" class="hidden" onchange="handleFieldProfilePhotoSelection(event)" />
+                                <button type="button" class="btn-secondary btn-sm" onclick="document.getElementById('edit-profile-photo').click()">Change Picture</button>
+                            </div>
+                            <div id="edit-profile-photo-status" style="margin-top:8px;font-size:12px;color:var(--mist)">Upload a JPG, PNG, GIF, or WebP image.</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-profile-name">Full Name</label>
+                            <input id="edit-profile-name" class="form-input" type="text" value="${safeText(FIELD_USER.name)}" />
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-profile-email">Email</label>
+                            <input id="edit-profile-email" class="form-input" type="email" value="${safeText(FIELD_USER.email)}" />
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-profile-phone">Phone</label>
+                            <input id="edit-profile-phone" class="form-input" type="tel" value="${safeText(FIELD_USER.phone || '+63 ')}" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+                        <button class="btn-primary" onclick="submitProfileEdit()">Save Changes</button>
+                    </div>
+                </div>
+            </div>`);
+}
+
+function handleFieldProfilePhotoSelection(event) {
+    const file = event?.target?.files?.[0];
+    const statusEl = document.getElementById('edit-profile-photo-status');
+    const preview = document.getElementById('edit-profile-photo-preview');
+    if (!file || !preview) return;
+
+    const reader = new FileReader();
+    reader.onload = function(loadEvent) {
+        preview.src = String(loadEvent?.target?.result || preview.src);
+    };
+    reader.readAsDataURL(file);
+
+    if (statusEl) {
+        statusEl.textContent = `Selected: ${file.name}`;
+    }
+}
+
+async function uploadFieldProfilePhoto(file) {
+    const statusEl = document.getElementById('edit-profile-photo-status');
+    if (statusEl) statusEl.textContent = 'Uploading picture...';
+
+    const formData = new FormData();
+    formData.append('action', 'upload_evidence');
+    formData.append('file', file);
+
+    const uploadResp = await apiFetch('media.php?action=upload_evidence', formData, 'POST');
+    const photoUrl = String(uploadResp?.url || '').trim();
+    if (!photoUrl) {
+        throw new Error('Upload did not return a file URL.');
+    }
+
+    await apiFetch('user.php', {action: 'updateProfilePicture', profilePictureUrl: photoUrl}, 'POST');
+    FIELD_USER.profile_picture_url = photoUrl;
+    if (statusEl) statusEl.textContent = '✓ Picture uploaded successfully.';
+    return photoUrl;
+}
+
+async function submitProfileEdit() {
+        const name = document.getElementById('edit-profile-name')?.value.trim();
+        const email = document.getElementById('edit-profile-email')?.value.trim();
+        const phone = document.getElementById('edit-profile-phone')?.value.trim();
+    const photoFile = document.getElementById('edit-profile-photo')?.files?.[0] || null;
+
+        if (!name || !email || !phone) {
+                showToast('All fields are required.');
+                return;
+        }
+
+        try {
+        if (photoFile) {
+            await uploadFieldProfilePhoto(photoFile);
+        }
+                await apiFetch('user.php', {action: 'updateProfile', name, email, phone}, 'POST');
+                FIELD_USER.name = name;
+                FIELD_USER.email = email;
+                FIELD_USER.phone = phone;
+                renderProfile();
+                closeModal();
+                showToast('✓ Profile updated successfully.');
+        } catch (error) {
+                showToast(error.message);
+        }
+}
+
+function changePassword() {
+        openModal(`
+            <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+                <div class="modal" style="max-width:450px">
+                    <div class="modal-head">
+                        <div class="modal-title">Change Password</div>
+                        <button class="modal-close" onclick="closeModal()">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="current-pass">Current Password</label>
+                            <div class="password-wrap">
+                                <input id="current-pass" class="form-input login-input-password" type="password" placeholder="Enter current password" />
+                                <button type="button" class="password-toggle" onclick="toggleProfilePasswordVisibility('current-pass', this)" aria-label="Show password">◔</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-pass">New Password</label>
+                            <div class="password-wrap">
+                                <input id="new-pass" class="form-input login-input-password" type="password" placeholder="Enter new password" />
+                                <button type="button" class="password-toggle" onclick="toggleProfilePasswordVisibility('new-pass', this)" aria-label="Show password">◔</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirm-pass">Confirm Password</label>
+                            <div class="password-wrap">
+                                <input id="confirm-pass" class="form-input login-input-password" type="password" placeholder="Confirm new password" />
+                                <button type="button" class="password-toggle" onclick="toggleProfilePasswordVisibility('confirm-pass', this)" aria-label="Show password">◔</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+                        <button class="btn-primary" onclick="submitPasswordChange()">✓ Change Password</button>
+                    </div>
+                </div>
+            </div>`);
+}
+
+        function toggleProfilePasswordVisibility(inputId, button) {
+            const input = document.getElementById(inputId);
+            if (!input || !button) return;
+
+            const showing = input.type === 'text';
+            input.type = showing ? 'password' : 'text';
+            button.textContent = showing ? '◔' : '◕';
+            button.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+        }
+
+async function submitPasswordChange() {
+        const current = document.getElementById('current-pass')?.value.trim();
+        const nw = document.getElementById('new-pass')?.value.trim();
+        const confirm = document.getElementById('confirm-pass')?.value.trim();
+
+        if (!current || !nw || !confirm) {
+                showToast('Please fill in all password fields.');
+                return;
+        }
+        if (nw !== confirm) {
+                showToast('New passwords do not match.');
+                return;
+        }
+        if (nw.length < 8) {
+                showToast('Password must be at least 8 characters long.');
+                return;
+        }
+
+        try {
+                await apiFetch('user.php', {action: 'changePassword', currentPassword: current, newPassword: nw}, 'POST');
+                closeModal();
+                showToast('✓ Password changed successfully.');
+        } catch (error) {
+                showToast(error.message);
+        }
+}
+
+function viewActivityLog() {
+        const activities = [
+                {time: '2 min ago', action: 'Viewed assigned cases', detail: 'Accessed Assigned Cases page'},
+                {time: '5 min ago', action: 'Opened active job', detail: 'Reviewed current assignment details'},
+                {time: '12 min ago', action: 'Saved resolution draft', detail: 'Saved current progress locally'},
+                {time: '18 min ago', action: 'Updated case status', detail: 'Changed assignment workflow status'},
+                {time: '25 min ago', action: 'Sent message to dispatch', detail: 'Opened dispatch chat thread'},
+                {time: '42 min ago', action: 'Viewed performance', detail: 'Accessed My Performance page'},
+                {time: '1 hr ago', action: 'Logged in', detail: 'Session started'},
+        ];
+
+        openModal(`
+            <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+                <div class="modal" style="max-width:600px">
+                    <div class="modal-head">
+                        <div>
+                            <div class="modal-title">Activity Log</div>
+                            <div class="modal-subtitle">Your recent actions in TRAPICO</div>
+                        </div>
+                        <button class="modal-close" onclick="closeModal()">✕</button>
+                    </div>
+                    <div class="modal-body" style="padding:0">
+                        ${activities.map(a => `
+                            <div style="padding:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:start">
+                                <div style="flex:1">
+                                    <div style="font-weight:600;font-size:13px">${safeText(a.action)}</div>
+                                    <div style="font-size:12px;color:var(--mist);margin-top:4px">${safeText(a.detail)}</div>
+                                </div>
+                                <div style="font-size:12px;color:var(--mist);white-space:nowrap;margin-left:12px">${safeText(a.time)}</div>
+                            </div>`).join('')}
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-secondary" onclick="closeModal()">Close</button>
+                    </div>
+                </div>
+            </div>`);
 }
 
 function getDispatchChatButtonClass() {
@@ -986,7 +1286,8 @@ window.setActivePage = function(pageId) {
     }
     if (pageId === 'history') renderHistory();
     if (pageId === 'performance') renderPerformance();
-        if (pageId === 'drafts') renderDrafts();
+    if (pageId === 'drafts') renderDrafts();
+    if (pageId === 'profile') renderProfile();
 };
 
 function renderDrafts() {

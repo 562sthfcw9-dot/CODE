@@ -135,6 +135,8 @@
         <div class="tabs" id="queue-tabs">
           <div class="tab active" data-tab="submitted" onclick="switchQueueTab(this)">Submitted <span id="tab-submitted-count"></span></div>
           <div class="tab"        data-tab="verified"  onclick="switchQueueTab(this)">Verified — Unassigned <span id="tab-verified-count"></span></div>
+          <div class="tab"        data-tab="resolved"  onclick="switchQueueTab(this)">Resolved — For Closing <span id="tab-resolved-count"></span></div>
+          <div class="tab"        data-tab="closed"    onclick="switchQueueTab(this)">Closed Cases <span id="tab-closed-count"></span></div>
         </div>
 
         <div class="card" style="padding:0">
@@ -283,6 +285,6 @@
 <script src="../data.js?v=20260508b"></script>
 <script src="../api.js?v=20260508b"></script>
 <script src="dispatch.js?v=20260508b"></script>
-<script src="dispatch.backend.js?v=20260508b"></script>
+<script src="dispatch.backend.js?v=20260510f"></script>
 </body>
 </html>

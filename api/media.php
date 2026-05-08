@@ -14,9 +14,9 @@ if ($action === 'upload_evidence') {
     $maxSize = 50 * 1024 * 1024; // 50MB
     $allowedTypes = [
         'image/jpeg', 'image/jpg', 'image/pjpeg', 'image/png', 'image/gif', 'image/webp',
-        'video/mp4', 'video/quicktime', 'video/x-m4v',
+        'video/mp4', 'video/quicktime', 'video/x-m4v', 'video/webm', 'video/3gpp', 'video/3gpp2',
     ];
-    $allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'm4v'];
+    $allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'm4v', 'webm', '3gp', '3gpp'];
 
     if ($file['size'] < $minSize || $file['size'] > $maxSize) {
         errorResponse('File size must be between 1KB and 50MB.');
@@ -26,7 +26,7 @@ if ($action === 'upload_evidence') {
     $mimeAllowed = in_array((string)$file['type'], $allowedTypes, true);
     $extAllowed = in_array($ext, $allowedExts, true);
     if (!$mimeAllowed && !$extAllowed) {
-        errorResponse('Only JPG, PNG, GIF, WebP, and MP4 files are allowed.');
+        errorResponse('Only JPG, PNG, GIF, WebP, MP4, MOV, M4V, WEBM, and 3GP files are allowed.');
     }
 
     // Generate unique filename

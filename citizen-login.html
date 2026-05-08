@@ -72,15 +72,21 @@
 
 <div id="forgot-modal-overlay" class="login-modal-overlay hidden" onclick="closeForgotModal(event)" role="dialog" aria-modal="true" aria-labelledby="forgot-title">
   <div class="login-modal-card">
-    <h3 id="forgot-title" class="login-modal-title">PASSWORD RESET REQUESTED</h3>
+    <h3 id="forgot-title" class="login-modal-title">FORGOT PASSWORD</h3>
     <hr class="login-modal-divider" />
-    <p class="login-modal-body">A password reset link has been sent to your registered email address. Please check your inbox (and spam folder) for further instructions.</p>
-    <button type="button" class="login-modal-close" onclick="closeForgotModal()">CLOSE</button>
+    <p class="login-modal-body">Enter your username or email address. We will send a working reset link to your registered email.</p>
+    <div class="form-group login-field-group" style="margin-bottom:12px;">
+      <label class="login-label" for="forgot-identifier">USERNAME OR EMAIL</label>
+      <input id="forgot-identifier" class="login-input" type="text" placeholder="e.g. rikka or rikka@gmail.com" />
+    </div>
+    <div id="forgot-status" class="login-error hidden" style="margin-bottom:10px;"></div>
+    <button type="button" class="login-modal-close" onclick="submitForgotPassword()">SEND RESET LINK</button>
+    <button type="button" class="login-modal-close" style="margin-top:8px;background:#7d838c" onclick="closeForgotModal()">CLOSE</button>
   </div>
 </div>
 
-<script src="data.js?v=20260507n"></script>
-<script src="api.js?v=20260507n"></script>
-<script src="login.js?v=20260507n"></script>
+<script src="data.js?v=20260510d"></script>
+<script src="api.js?v=20260510d"></script>
+<script src="login.js?v=20260510l"></script>
 </body>
 </html>

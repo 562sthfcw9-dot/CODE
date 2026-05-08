@@ -32,9 +32,9 @@ try {
                     u.full_name AS name, u.email
              FROM Users u
              JOIN Dispatch_officers d ON d.user_id = u.user_id
-             WHERE (u.username = :u1 OR u.email = :u2) AND u.role = :role AND u.is_active = 1'
+             WHERE (u.username = :u1 OR u.email = :u2 OR d.badge_number = :u3) AND u.role = :role AND u.is_active = 1'
         );
-        $stmt->execute([':u1' => $username, ':u2' => $username, ':role' => 'dispatch_officer']);
+        $stmt->execute([':u1' => $username, ':u2' => $username, ':u3' => $username, ':role' => 'dispatch_officer']);
         $user = $stmt->fetch();
         $redirect = 'DISPATCH/dispatch.html?v=20260507';
 

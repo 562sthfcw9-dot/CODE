@@ -358,6 +358,9 @@
   .evidence-grid   { grid-template-columns: 1fr; }
   .perf-grid       { grid-template-columns: 1fr; }
   .assigned-card-body { grid-template-columns: 1fr; }
+  #page-profile > div:first-child { grid-template-columns: 1fr !important; }
+  #page-profile > div:first-child > .card { grid-column: auto !important; }
+  #page-profile [style*="grid-template-columns:1fr 1fr 1fr 1fr"] { grid-template-columns: 1fr !important; }
   .job-meta-grid { grid-template-columns: 1fr; }
   .status-control-row { flex-direction: column; align-items: stretch; }
   .status-select { width: 100%; }

@@ -647,6 +647,18 @@ let uploadedFiles = [];
 const MAX_EVIDENCE_FILES = 3;
 const MIN_EVIDENCE_SIZE_BYTES = 1024;
 const MAX_EVIDENCE_SIZE_BYTES = 50 * 1024 * 1024;
+const SUPPORTED_EVIDENCE_MIME_TYPES = [
+    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+    'video/mp4', 'video/quicktime', 'video/x-m4v', 'video/webm', 'video/3gpp', 'video/3gpp2'
+];
+const SUPPORTED_EVIDENCE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'm4v', 'webm', '3gp', '3gpp'];
+
+function isSupportedEvidenceFile(file) {
+    const mime = String(file?.type || '').toLowerCase();
+    const name = String(file?.name || '').toLowerCase();
+    const ext = name.includes('.') ? name.split('.').pop() : '';
+    return SUPPORTED_EVIDENCE_MIME_TYPES.includes(mime) || SUPPORTED_EVIDENCE_EXTENSIONS.includes(ext);
+}
 
 function toDatetimeLocalParts(dateObj) {
     const d = dateObj;
@@ -753,8 +765,8 @@ async function handleFileUpload(event) {
             continue;
         }
 
-        if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime'].includes(file.type)) {
-            showToast(`"${file.name}" is not supported. Use JPG, PNG, GIF, WebP, MP4, or MOV.`);
+        if (!isSupportedEvidenceFile(file)) {
+            showToast(`"${file.name}" is not supported. Use JPG, PNG, GIF, WebP, MP4, MOV, M4V, WEBM, or 3GP.`);
             continue;
         }
 

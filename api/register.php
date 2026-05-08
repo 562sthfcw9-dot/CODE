@@ -112,12 +112,19 @@ try {
         $emailNoticeSent = sendSignupEmailNotice($email, $name);
 
     } elseif ($role === 'dispatch') {
+        if ($emailIn === '') {
+            errorResponse('Email address is required.');
+        }
+        if (!filter_var($emailIn, FILTER_VALIDATE_EMAIL)) {
+            errorResponse('Please provide a valid email address.');
+        }
+
         $exists = $db->prepare("SELECT 1 FROM Users WHERE username = :u AND role = 'dispatch_officer' LIMIT 1");
         $exists->execute([':u' => $username]);
         if ($exists->fetchColumn()) {
             errorResponse('Account is already registered.');
         }
-        $email = uniqueEmail($db, normalizeEmail($username, $role));
+        $email = uniqueEmail($db, $emailIn);
         $stmt  = $db->prepare(
             'INSERT INTO Users (username, email, password_hash, full_name, phone_number, barangay, role)
              VALUES (:username, :email, :hash, :name, :phone, :barangay, :role_val)'

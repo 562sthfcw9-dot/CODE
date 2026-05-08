@@ -45,7 +45,7 @@ if ($action === 'queue') {
                        OR d.duplicate_complaint_id = c.complaint_id
                 ) THEN 1 ELSE 0 END AS duplicate
          FROM Complaints c
-         WHERE c.status IN ('submitted','verified')
+         WHERE c.status IN ('submitted','verified','resolved','closed')
          ORDER BY c.submitted_at DESC"
     );
     successResponse(['complaints' => $stmt->fetchAll()]);
@@ -295,8 +295,106 @@ if ($action === 'activeCases') {
     successResponse(['activeCases' => $stmt->fetchAll()]);
 }
 
+if ($action === 'complaintDetail') {
+    $trackingId = trim((string)($_REQUEST['id'] ?? $data['id'] ?? ''));
+    if ($trackingId === '') {
+        errorResponse('Complaint ID is required.');
+    }
+
+    $cStmt = $db->prepare(
+        "SELECT c.complaint_id, c.tracking_id AS id, c.category AS cat, c.asset_town AS brgy,
+                c.priority, c.status, c.submitted_at AS date,
+                c.is_anonymous AS anon, c.description,
+                c.latitude AS lat, c.longitude AS lng,
+            '' AS user
+         FROM Complaints c
+         WHERE c.tracking_id = :id
+         LIMIT 1"
+    );
+    $cStmt->execute([':id' => $trackingId]);
+    $complaint = $cStmt->fetch();
+    if (!$complaint) {
+        errorResponse('Complaint not found.');
+    }
+
+    $media = [];
+
+    try {
+        $mStmt = $db->prepare(
+            'SELECT media_id, file_url, file_type, evidence_stage, uploaded_at
+             FROM Media
+             WHERE complaint_id = :cid
+             ORDER BY uploaded_at ASC, media_id ASC'
+        );
+        $mStmt->execute([':cid' => (int)$complaint['complaint_id']]);
+        $media = $mStmt->fetchAll();
+    } catch (PDOException $e) {
+        $media = [];
+    }
+
+    try {
+        $rStmt = $db->prepare(
+            'SELECT before_photo_url, after_photo_url, submitted_at
+             FROM resolution_reports
+             WHERE complaint_id = :cid
+             ORDER BY submitted_at DESC
+             LIMIT 1'
+        );
+        $rStmt->execute([':cid' => (int)$complaint['complaint_id']]);
+        $report = $rStmt->fetch();
+
+        if ($report) {
+            $before = trim((string)($report['before_photo_url'] ?? ''));
+            $after = trim((string)($report['after_photo_url'] ?? ''));
+            $when = (string)($report['submitted_at'] ?? null);
+
+            if ($before !== '') {
+                $media[] = [
+                    'media_id' => null,
+                    'file_url' => $before,
+                    'file_type' => 'photo',
+                    'evidence_stage' => 'before_proof',
+                    'uploaded_at' => $when,
+                ];
+            }
+
+            if ($after !== '') {
+                $media[] = [
+                    'media_id' => null,
+                    'file_url' => $after,
+                    'file_type' => 'photo',
+                    'evidence_stage' => 'after_proof',
+                    'uploaded_at' => $when,
+                ];
+            }
+        }
+    } catch (PDOException $e) {
+        // resolution_reports table may be absent in some setups
+    }
+
+    if (!empty($media)) {
+        $seenByUrl = [];
+        $dedupedMedia = [];
+        foreach ($media as $row) {
+            $urlKey = trim((string)($row['file_url'] ?? ''));
+            if ($urlKey === '' || isset($seenByUrl[$urlKey])) {
+                continue;
+            }
+            $seenByUrl[$urlKey] = true;
+            $dedupedMedia[] = $row;
+        }
+        $media = $dedupedMedia;
+    }
+
+    successResponse([
+        'complaint' => $complaint,
+        'media' => $media,
+        'media_count' => count($media),
+    ]);
+}
+
 if ($action === 'caseTimeline') {
-    $trackingId = trim((string)($data['id'] ?? ''));
+    $trackingId = trim((string)($_REQUEST['id'] ?? $data['id'] ?? ''));
     if ($trackingId === '') {
         errorResponse('Complaint ID is required.');
     }
